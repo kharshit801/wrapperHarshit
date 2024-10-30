@@ -59,7 +59,7 @@ const MoneyTracker = () => {
       backgroundColor: COLORS.background
     },
     menuButton: {
-      padding: wp('2%')
+      padding: wp('2%') 
     },
     searchButton: {
       padding: wp('2%')

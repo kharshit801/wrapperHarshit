@@ -3,14 +3,19 @@ import { View, Text, Image, StyleSheet, Linking, StatusBar } from "react-native"
 import { DrawerContentScrollView, DrawerItem } from "@react-navigation/drawer";
 import { Drawer } from "expo-router/drawer";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp
+} from 'react-native-responsive-screen';
 
 const CustomDrawerContent = (props) => {
   return (
     <DrawerContentScrollView {...props} contentContainerStyle={styles.drawerContent}>
-      <StatusBar 
+      <StatusBar
         barStyle="light-content"
-        backgroundColor="#2f2f2f"
+        backgroundColor="#000000"
         translucent={true}
+        hidden={false}
       />
       <View style={styles.profileContainer}>
         <Image
@@ -22,7 +27,7 @@ const CustomDrawerContent = (props) => {
       </View>
       <View style={styles.drawerItemsContainer}>
         {props.state.routes
-          .filter((route) => route.name !== "(tabs)") 
+          .filter((route) => route.name !== "(tabs)")
           .map((route, index) => (
             <DrawerItem
               key={route.key}
@@ -33,27 +38,27 @@ const CustomDrawerContent = (props) => {
           ))}
         <DrawerItem
           label="Help"
-          icon={() => <MaterialIcons name="help-outline" size={24} color="#555" />}
+          icon={() => <MaterialIcons name="help-outline" size={wp('6%')} color="#555" />}
           onPress={() => Linking.openURL('https://forms.gle/5iJKWrfCXMsviTiL8')}
         />
         <DrawerItem
           label="Feedback"
-          icon={() => <MaterialIcons name="feedback" size={24} color="#555" />}
+          icon={() => <MaterialIcons name="feedback" size={wp('6%')} color="#555" />}
           onPress={() => Linking.openURL('https://forms.gle/5iJKWrfCXMsviTiL8')}
         />
         <DrawerItem
           label="Languages"
-          icon={() => <Ionicons name="language" size={24} color="#555" />}
+          icon={() => <Ionicons name="language" size={wp('6%')} color="#555" />}
           onPress={() => console.log("Language options pressed")}
         />
-        <DrawerItem label ="Export Data"
-        icon={()=><Ionicons name="exit" size={24} color="#555" />}
-        onPress={()=> console.log("Export options pressed")}>
-
-        </DrawerItem>
+        <DrawerItem 
+          label="Export Data"
+          icon={() => <Ionicons name="exit" size={wp('6%')} color="#555" />}
+          onPress={() => console.log("Export options pressed")}
+        />
         <DrawerItem
           label="Logout"
-          icon={() => <MaterialIcons name="logout" size={24} color="#ff6b6b" />}
+          icon={() => <MaterialIcons name="logout" size={wp('6%')} color="#ff6b6b" />}
           onPress={() => console.log("Logout pressed")}
           labelStyle={{ color: "#ff6b6b" }}
         />
@@ -68,7 +73,7 @@ export default function Layout() {
       screenOptions={{
         headerShown: false,
         drawerStyle: {
-          width: '72%', 
+          width: wp('72%'),
         },
         swipeEnabled: true,
         drawerType: "front",
@@ -85,31 +90,36 @@ const styles = StyleSheet.create({
   drawerContent: {
     flex: 1,
     backgroundColor: "#f4f4f4",
-    paddingTop: StatusBar.currentHeight,
+    paddingTop: hp('2%'),
   },
   profileContainer: {
     alignItems: "center",
-    padding: 20,
+    padding: wp('5%'),
+    paddingTop: hp('5%'),
     backgroundColor: "#2f2f2f",
+    borderBottomWidth: 1,
+    borderBottomColor: '#3f3f3f',
   },
   profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 10,
+    width: wp('20%'),
+    height: wp('20%'),
+    borderRadius: wp('10%'),
+    marginBottom: hp('1%'),
     backgroundColor: "#fff",
   },
   userName: {
-    fontSize: 18,
+    fontSize: wp('4.5%'),
     fontWeight: "600",
     color: "#fff",
   },
   userEmail: {
-    fontSize: 14,
+    fontSize: wp('3.5%'),
     color: "#ddd",
+    marginTop: hp('0.5%'),
   },
   drawerItemsContainer: {
     flex: 1,
-    paddingTop: 10,
+    paddingTop: hp('1%'),
+    marginTop: hp('1%'),
   },
 });

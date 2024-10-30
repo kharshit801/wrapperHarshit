@@ -1,16 +1,26 @@
 import React from "react";
-import { View, Text, Image, StyleSheet, Linking, StatusBar } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  Linking,
+  StatusBar,
+} from "react-native";
 import { DrawerContentScrollView, DrawerItem } from "@react-navigation/drawer";
 import { Drawer } from "expo-router/drawer";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import {
   widthPercentageToDP as wp,
-  heightPercentageToDP as hp
-} from 'react-native-responsive-screen';
+  
+  heightPercentageToDP as hp,
+} from "react-native-responsive-screen";
+import PropTypes from 'prop-types';
 
 const CustomDrawerContent = (props) => {
   return (
     <DrawerContentScrollView {...props} contentContainerStyle={styles.drawerContent}>
+
       <StatusBar
         barStyle="light-content"
         backgroundColor="#000000"
@@ -19,7 +29,7 @@ const CustomDrawerContent = (props) => {
       />
       <View style={styles.profileContainer}>
         <Image
-          source={{ uri: 'https://example.com/user-profile.jpg' }}
+          source={{ uri: "https://example.com/user-profile.jpg" }}
           style={styles.profileImage}
         />
         <Text style={styles.userName}>Team AUXIN</Text>
@@ -31,57 +41,70 @@ const CustomDrawerContent = (props) => {
           .map((route, index) => (
             <DrawerItem
               key={route.key}
-              label={props.descriptors[route.key].options.drawerLabel || route.name}
+              label={
+                props.descriptors[route.key].options.drawerLabel || route.name
+              }
               icon={props.descriptors[route.key].options.drawerIcon}
               onPress={() => props.navigation.navigate(route.name)}
             />
           ))}
         <DrawerItem
           label="Help"
-          icon={() => <MaterialIcons name="help-outline" size={wp('6%')} color="#555" />}
-          onPress={() => Linking.openURL('https://forms.gle/5iJKWrfCXMsviTiL8')}
+          icon={() => (
+            <MaterialIcons name="help-outline" size={wp("6%")} color="#555" />
+          )}
+          onPress={() => Linking.openURL("https://forms.gle/5iJKWrfCXMsviTiL8")}
         />
         <DrawerItem
           label="Feedback"
-          icon={() => <MaterialIcons name="feedback" size={wp('6%')} color="#555" />}
-          onPress={() => Linking.openURL('https://forms.gle/5iJKWrfCXMsviTiL8')}
+          icon={() => (
+            <MaterialIcons name="feedback" size={wp("6%")} color="#555" />
+          )}
+          onPress={() => Linking.openURL("https://forms.gle/5iJKWrfCXMsviTiL8")}
         />
         <DrawerItem
           label="Languages"
-          icon={() => <Ionicons name="language" size={wp('6%')} color="#555" />}
+          icon={() => <Ionicons name="language" size={wp("6%")} color="#555" />}
           onPress={() => console.log("Language options pressed")}
         />
-        <DrawerItem 
+        <DrawerItem
           label="Export Data"
-          icon={() => <Ionicons name="exit" size={wp('6%')} color="#555" />}
+          icon={() => <Ionicons name="exit" size={wp("6%")} color="#555" />}
           onPress={() => console.log("Export options pressed")}
         />
         <DrawerItem
           label="Logout"
-          icon={() => <MaterialIcons name="logout" size={wp('6%')} color="#ff6b6b" />}
+          icon={() => (
+            <MaterialIcons name="logout" size={wp("6%")} color="#ff6b6b" />
+          )}
           onPress={() => console.log("Logout pressed")}
           labelStyle={{ color: "#ff6b6b" }}
         />
       </View>
     </DrawerContentScrollView>
   );
+  
 };
 
-export default function Layout() {
+
+
+export default function Layout({ navigation }) {
   return (
     <Drawer
       screenOptions={{
         headerShown: false,
         drawerStyle: {
-          width: wp('72%'),
+          width: wp("72%"),
         },
         swipeEnabled: true,
         drawerType: "front",
-        overlayColor: 'rgba(0,0,0,0.7)',
+        overlayColor: "rgba(0,0,0,0.7)",
         hideStatusBar: false,
-        statusBarAnimation: 'slide',
+        statusBarAnimation: "slide",
       }}
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
+      drawerContent={(props) => (
+        <CustomDrawerContent {...props} navigation={navigation} />
+      )}
     />
   );
 }
@@ -90,36 +113,36 @@ const styles = StyleSheet.create({
   drawerContent: {
     flex: 1,
     backgroundColor: "#f4f4f4",
-    paddingTop: hp('2%'),
+    paddingTop: hp("2%"),
   },
   profileContainer: {
     alignItems: "center",
-    padding: wp('5%'),
-    paddingTop: hp('5%'),
+    padding: wp("5%"),
+    paddingTop: hp("5%"),
     backgroundColor: "#2f2f2f",
     borderBottomWidth: 1,
-    borderBottomColor: '#3f3f3f',
+    borderBottomColor: "#3f3f3f",
   },
   profileImage: {
-    width: wp('20%'),
-    height: wp('20%'),
-    borderRadius: wp('10%'),
-    marginBottom: hp('1%'),
+    width: wp("20%"),
+    height: wp("20%"),
+    borderRadius: wp("10%"),
+    marginBottom: hp("1%"),
     backgroundColor: "#fff",
   },
   userName: {
-    fontSize: wp('4.5%'),
+    fontSize: wp("4.5%"),
     fontWeight: "600",
     color: "#fff",
   },
   userEmail: {
-    fontSize: wp('3.5%'),
+    fontSize: wp("3.5%"),
     color: "#ddd",
-    marginTop: hp('0.5%'),
+    marginTop: hp("0.5%"),
   },
   drawerItemsContainer: {
     flex: 1,
-    paddingTop: hp('1%'),
-    marginTop: hp('1%'),
+    paddingTop: hp("1%"),
+    marginTop: hp("1%"),
   },
 });

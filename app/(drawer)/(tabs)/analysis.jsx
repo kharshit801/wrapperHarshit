@@ -225,6 +225,7 @@ const Analysis = () => {
 
         {isFooterExpanded && (
           <View style={styles.recommendationsContainer}>
+            <ScrollView>
             {recommendations.map((recommendation, index) => (
               <View key={index} style={styles.recommendationCard}>
                 <Text style={styles.recommendationTitle}>
@@ -243,6 +244,7 @@ const Analysis = () => {
                 </TouchableOpacity>
               </View>
             ))}
+            </ScrollView>
           </View>
         )}
       </Animated.View>
@@ -290,9 +292,10 @@ const styles = StyleSheet.create({
   },
   recommendationsContainer: {
     marginVertical: hp('2%'),
-    alignItems: 'center',
+    justifyContent:"center",
   },
   recommendationCard: {
+    alignSelf:"center",
     backgroundColor: COLORS.lightbackground,
     borderRadius: wp('4%'),
     padding: wp('4%'),

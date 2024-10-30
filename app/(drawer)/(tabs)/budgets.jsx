@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    marginTop: hp('-70%')
+    
   },
   summary: {
     flexDirection: 'row',

@@ -8,7 +8,7 @@ import Header from '../../../components/commonheader';
 
 const AccountsScreen = () => {
   const navigation = useNavigation();
-  
+
   const accounts = [
     { id: 1, type: 'Card', balance: 0.00, icon: 'card-outline' },
     { id: 2, type: 'Cash', balance: 0.00, icon: 'cash-outline' },
@@ -82,12 +82,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    marginTop: hp('-75%')
   },
   totalBalance: {
     alignItems: 'center',
     padding: wp('4%'),
-    backgroundColor: COLORS.background
   },
   totalBalanceLabel: {
     fontSize: wp('4%'),
@@ -101,7 +99,7 @@ const styles = StyleSheet.create({
   summary: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    padding: wp('4%'),
+    paddingVertical: wp('4%'),
     backgroundColor: COLORS.background,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.lightbackground
@@ -112,7 +110,6 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: wp('3%'),
     color: COLORS.text.secondary,
-    marginBottom: hp('0.5%')
   },
   summaryAmount: {
     fontSize: wp('4%'),
@@ -122,11 +119,12 @@ const styles = StyleSheet.create({
     fontSize: wp('5%'),
     fontWeight: '500',
     color: COLORS.text.primary,
-    padding: wp('4%'),
-    paddingBottom: wp('2%')
+    paddingHorizontal: wp('4%'),
+    paddingVertical: wp('2%')
   },
   accountsList: {
-    padding: wp('4%')
+    paddingHorizontal: wp('4%'),
+    paddingBottom: wp('2%'),
   },
   accountCard: {
     flexDirection: 'row',
@@ -157,7 +155,6 @@ const styles = StyleSheet.create({
     fontSize: wp('4.5%'),
     color: COLORS.text.primary,
     fontWeight: '500',
-    marginBottom: hp('0.5%')
   },
   accountBalance: {
     fontSize: wp('4%'),
@@ -181,8 +178,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: wp('2%')
   },
-  
- 
 });
 
 export default AccountsScreen;

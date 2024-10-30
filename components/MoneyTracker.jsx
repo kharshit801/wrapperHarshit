@@ -9,8 +9,13 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ExpenseCalculator from './ExpenseCalculator';
 import TransactionRecord from './TransactionRecord';
+import { useNavigation } from '@react-navigation/native';
+
+
 
 const MoneyTracker = ({ navigation }) => {
+
+  const navigate =useNavigation();
   // State management
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [transactions, setTransactions] = useState([]);
@@ -236,7 +241,7 @@ const MoneyTracker = ({ navigation }) => {
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
       <View style={styles.header}>
-        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => navigate.openDrawer()}>
           <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
         <Image source={require('../assets/images/logo.png')} style={{ width: wp('20%'), height: wp('8%') }} resizeMode='contain'/>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import {
@@ -111,10 +111,12 @@ const MoneyTracker = () => {
     <SafeAreaView style={styles.container}>
       {/* header */}
       <View style={styles.header}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
         <TouchableOpacity style={styles.menuButton}>
           <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Wrapper</Text>
+        {/* <Text style={styles.title}>Wrapper</Text> */}
+        <Image source={require('../assets/images/logo.png')} style={{ width: wp('20%'), height: wp('8%') }} resizeMode='contain'/>
         <TouchableOpacity style={styles.searchButton}>
           <Ionicons name="search" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>

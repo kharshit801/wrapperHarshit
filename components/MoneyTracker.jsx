@@ -36,6 +36,15 @@ const MoneyTracker = ({ navigation }) => {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
+  const clearAsyncStorage = async () => {
+    try {
+      await AsyncStorage.clear();
+      console.log('All data cleared from AsyncStorage');
+    } catch (error) {
+      console.error('Error clearing AsyncStorage:', error);
+    }
+  };
+
   // Handle month navigation
   const navigateMonth = (direction) => {
     const newDate = new Date(currentMonth);
@@ -59,9 +68,24 @@ const MoneyTracker = ({ navigation }) => {
   };
 
   // Calculate summary from transactions
+  // const calculateSummary = () => {
+  //   const newSummary = transactions.reduce((acc, transaction) => {
+  //     const amount = transaction.amount;
+  //     if (transaction.type === 'EXPENSE') {
+  //       acc.expense += amount;
+  //       acc.total -= amount;
+  //     } else {
+  //       acc.income += amount;
+  //       acc.total += amount;
+  //     }
+  //     return acc;
+  //   }, { expense: 0, income: 0, total: 0 });
+
+  //   setSummary(newSummary);
+  // };
   const calculateSummary = () => {
     const newSummary = transactions.reduce((acc, transaction) => {
-      const amount = transaction.amount;
+      const amount = transaction.amount || 0; // Use 0 if amount is missing
       if (transaction.type === 'EXPENSE') {
         acc.expense += amount;
         acc.total -= amount;
@@ -71,32 +95,36 @@ const MoneyTracker = ({ navigation }) => {
       }
       return acc;
     }, { expense: 0, income: 0, total: 0 });
-
+  
     setSummary(newSummary);
   };
-
   // Handle saving new transaction
   const handleSaveTransaction = async (transactionData) => {
     const newTransaction = {
       id: Date.now(),
-      ...transactionData
+      date: new Date(),
+      amount: parseFloat(transactionData.amount), // Parse the amount to a float
+      type: transactionData.type,
+      category: transactionData.category,
+      account: transactionData.account,
+      note: transactionData.note || '',
     };
-    
+  
     const updatedTransactions = [newTransaction, ...transactions];
     const monthKey = currentMonth.toISOString().slice(0, 7);
-    
+  
     try {
       await AsyncStorage.setItem(
         `transactions_${monthKey}`,
         JSON.stringify(updatedTransactions)
       );
       setTransactions(updatedTransactions);
+      await loadTransactions(); // Call loadTransactions to update the UI
       setShowCalculator(false);
     } catch (error) {
       Alert.alert('Error', 'Failed to save transaction');
     }
   };
-
   // Handle search
   const handleSearch = () => {
     navigation.navigate('SearchTransactions');
@@ -210,26 +238,47 @@ const MoneyTracker = ({ navigation }) => {
     }
   });
 
+  // const renderContent = () => {
+  //   if (transactions.length === 0) {
+  //     return (
+  //       <View style={styles.emptyState}>
+  //         <Ionicons name="document-text-outline" size={wp('12%')} color={COLORS.text.secondary} />
+  //         <Text style={styles.emptyStateText}>
+  //           No record in this month. Tap + to add new expense or income.
+  //         </Text>
+  //       </View>
+  //     );
+  //   }
+
+  //   return (
+  //     <View style={styles.transactionList}>
+  //       {transactions.map(transaction => (
+  //         <TransactionRecord key={transaction.id} transaction={transaction} />
+  //       ))}
+  //     </View>
+  //   );
+  // };
   const renderContent = () => {
     if (transactions.length === 0) {
       return (
         <View style={styles.emptyState}>
           <Ionicons name="document-text-outline" size={wp('12%')} color={COLORS.text.secondary} />
           <Text style={styles.emptyStateText}>
-            No record in this month. Tap + to add new expense or income.
+            No transactions for this month. Tap + to add new expense or income.
           </Text>
         </View>
       );
     }
-
+  
     return (
       <View style={styles.transactionList}>
-        {transactions.map(transaction => (
+        {transactions.map((transaction) => (
           <TransactionRecord key={transaction.id} transaction={transaction} />
         ))}
       </View>
     );
   };
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -280,10 +329,17 @@ const MoneyTracker = ({ navigation }) => {
       </View>
 
       {renderContent()}
+    
+      {/* <TouchableOpacity 
+        style={styles.addButton}
+        onPress={() => setShowCalculator(true)}
+      >
+        <Text style={styles.addButtonText}>+</Text>
+      </TouchableOpacity> */}
 
       <TouchableOpacity 
         style={styles.addButton}
-        onPress={() => setShowCalculator(true)}
+        onPress={clearAsyncStorage}
       >
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
@@ -299,6 +355,7 @@ const MoneyTracker = ({ navigation }) => {
           onSave={handleSaveTransaction}
         />
       </Modal>
+
     </SafeAreaView>
   );
 };

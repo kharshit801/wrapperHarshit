@@ -12,6 +12,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: COLORS.secondary,
@@ -78,5 +79,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </SafeAreaView>
   );
 }

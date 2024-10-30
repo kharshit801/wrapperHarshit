@@ -4,9 +4,7 @@ import MoneyTracker from '../../components/MoneyTracker';
 
 const IndexScreen = () => {
   return (
-    <SafeAreaView style={styles.container}>
       <MoneyTracker />
-    </SafeAreaView>
   );
 };
 

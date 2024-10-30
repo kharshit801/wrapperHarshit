@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Modal,Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import {
@@ -10,39 +10,19 @@ import ExpenseCalculator from './ExpenseCalculator';
 import TransactionRecord from './TransactionRecord';
 import { useNavigation } from '@react-navigation/native';
 import Header from './commonheader';
+import { useGlobalContext } from './globalProvider'; 
 
 const MoneyTracker = () => {
   const navigation = useNavigation();
+  const { state, dispatch } = useGlobalContext(); 
   const [showCalculator, setShowCalculator] = useState(false);
-  const [transactions, setTransactions] = useState([]);
-  const [summaryData, setSummaryData] = useState({
-    expense: 0,
-    income: 0,
-    total: 0
-  });
-
-  useEffect(() => {
-    const expense = transactions
-      .filter(t => t.type === 'EXPENSE')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const income = transactions
-      .filter(t => t.type === 'INCOME')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    setSummaryData({
-      expense,
-      income,
-      total: income - expense
-    });
-  }, [transactions]);
 
   const handleSaveTransaction = (transactionData) => {
     const newTransaction = {
       id: Date.now(),
       ...transactionData
     };
-    setTransactions([newTransaction, ...transactions]);
+    dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction }); 
     setShowCalculator(false);
   };
 
@@ -50,42 +30,27 @@ const MoneyTracker = () => {
     container: {
       flex: 1,
       backgroundColor: COLORS.background,
-
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: wp('4%'),
-      backgroundColor: COLORS.background
-    },
-    menuButton: {
-      padding: wp('2%')
-    },
-    searchButton: {
-      padding: wp('2%')
-    },
-    title: {
-      fontSize: wp('6%'),
-      fontWeight: '500',
-      color: COLORS.secondary
+      backgroundColor: COLORS.background,
     },
     monthNav: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: wp('4%'),
-      backgroundColor: COLORS.lightbackground
+      backgroundColor: COLORS.lightbackground,
     },
     monthText: {
       fontSize: wp('4.5%'),
       fontWeight: '500',
       flex: 1,
       textAlign: 'center',
-      color: COLORS.text.primary
-    },
-    filterButton: {
-      marginLeft: wp('4%')
+      color: COLORS.text.primary,
     },
     summary: {
       flexDirection: 'row',
@@ -93,33 +58,33 @@ const MoneyTracker = () => {
       padding: wp('4%'),
       borderBottomWidth: 1,
       borderBottomColor: COLORS.lightbackground,
-      backgroundColor: COLORS.background
+      backgroundColor: COLORS.background,
     },
     summaryItem: {
       flex: 1,
-      alignItems: 'center'
+      alignItems: 'center',
     },
     summaryLabel: {
       fontSize: wp('3%'),
       color: COLORS.text.secondary,
-      marginBottom: hp('0.5%')
+      marginBottom: hp('0.5%'),
     },
     summaryAmount: {
       fontSize: wp('4%'),
-      fontWeight: '500'
+      fontWeight: '500',
     },
     emptyState: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
       padding: wp('8%'),
-      backgroundColor: COLORS.background
+      backgroundColor: COLORS.background,
     },
     emptyStateText: {
       color: COLORS.text.secondary,
       textAlign: 'center',
       marginTop: hp('2%'),
-      fontSize: wp('4%')
+      fontSize: wp('4%'),
     },
     addButton: {
       position: 'absolute',
@@ -133,25 +98,22 @@ const MoneyTracker = () => {
       alignItems: 'center',
       elevation: 5,
       shadowColor: COLORS.primary,
-      shadowOffset: {
-        width: 0,
-        height: 4,
-      },
+      shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
       shadowRadius: 4.65,
     },
     addButtonText: {
       fontSize: wp('8%'),
-      color: COLORS.whiteBg
+      color: COLORS.whiteBg,
     },
     transactionList: {
       flex: 1,
-      backgroundColor: COLORS.background
-    }
+      backgroundColor: COLORS.background,
+    },
   });
 
   const renderContent = () => {
-    if (transactions.length === 0) {
+    if (state.transactions.length === 0) {
       return (
         <View style={styles.emptyState}>
           <Ionicons name="document-text-outline" size={wp('12%')} color={COLORS.text.secondary} />
@@ -164,7 +126,7 @@ const MoneyTracker = () => {
 
     return (
       <View style={styles.transactionList}>
-        {transactions.map(transaction => (
+        {state.transactions.map(transaction => (
           <TransactionRecord key={transaction.id} transaction={transaction} />
         ))}
       </View>
@@ -194,21 +156,19 @@ const MoneyTracker = () => {
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>EXPENSE</Text>
           <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>
-            ₹{summaryData.expense.toFixed(2)}
+            ₹{state.summary.expense.toFixed(2)}
           </Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>INCOME</Text>
           <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>
-            ₹{summaryData.income.toFixed(2)}
+            ₹{state.summary.income.toFixed(2)}
           </Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>TOTAL</Text>
-          <Text style={[styles.summaryAmount, { 
-            color: summaryData.total >= 0 ? '#51cf66' : '#ff6b6b' 
-          }]}>
-            ₹{summaryData.total.toFixed(2)}
+          <Text style={[styles.summaryAmount, { color: state.summary.total >= 0 ? '#51cf66' : '#ff6b6b' }]}>
+            ₹{state.summary.total.toFixed(2)}
           </Text>
         </View>
       </View>

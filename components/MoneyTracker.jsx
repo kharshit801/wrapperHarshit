@@ -1,55 +1,116 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Modal,Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp
 } from 'react-native-responsive-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ExpenseCalculator from './ExpenseCalculator';
 import TransactionRecord from './TransactionRecord';
-import { useNavigation } from '@react-navigation/native';
 
-const MoneyTracker = () => {
-  const navigation = useNavigation();
-  const [showCalculator, setShowCalculator] = useState(false);
+const MoneyTracker = ({ navigation }) => {
+  // State management
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [transactions, setTransactions] = useState([]);
-  const [summaryData, setSummaryData] = useState({
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [summary, setSummary] = useState({
     expense: 0,
     income: 0,
     total: 0
   });
 
+  // Load transactions from AsyncStorage
   useEffect(() => {
-    const expense = transactions
-      .filter(t => t.type === 'EXPENSE')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const income = transactions
-      .filter(t => t.type === 'INCOME')
-      .reduce((sum, t) => sum + t.amount, 0);
+    loadTransactions();
+  }, [currentMonth]);
 
-    setSummaryData({
-      expense,
-      income,
-      total: income - expense
-    });
+  // Calculate summary whenever transactions change
+  useEffect(() => {
+    calculateSummary();
   }, [transactions]);
 
-  const handleSaveTransaction = (transactionData) => {
+  // Format date to "Month, Year"
+  const formatMonth = (date) => {
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  // Handle month navigation
+  const navigateMonth = (direction) => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(currentMonth.getMonth() + direction);
+    setCurrentMonth(newDate);
+  };
+
+  // Load transactions from storage
+  const loadTransactions = async () => {
+    try {
+      const monthKey = currentMonth.toISOString().slice(0, 7); // Format: YYYY-MM
+      const storedTransactions = await AsyncStorage.getItem(`transactions_${monthKey}`);
+      if (storedTransactions) {
+        setTransactions(JSON.parse(storedTransactions));
+      } else {
+        setTransactions([]);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load transactions');
+    }
+  };
+
+  // Calculate summary from transactions
+  const calculateSummary = () => {
+    const newSummary = transactions.reduce((acc, transaction) => {
+      const amount = transaction.amount;
+      if (transaction.type === 'EXPENSE') {
+        acc.expense += amount;
+        acc.total -= amount;
+      } else {
+        acc.income += amount;
+        acc.total += amount;
+      }
+      return acc;
+    }, { expense: 0, income: 0, total: 0 });
+
+    setSummary(newSummary);
+  };
+
+  // Handle saving new transaction
+  const handleSaveTransaction = async (transactionData) => {
     const newTransaction = {
       id: Date.now(),
       ...transactionData
     };
-    setTransactions([newTransaction, ...transactions]);
-    setShowCalculator(false);
+    
+    const updatedTransactions = [newTransaction, ...transactions];
+    const monthKey = currentMonth.toISOString().slice(0, 7);
+    
+    try {
+      await AsyncStorage.setItem(
+        `transactions_${monthKey}`,
+        JSON.stringify(updatedTransactions)
+      );
+      setTransactions(updatedTransactions);
+      setShowCalculator(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save transaction');
+    }
+  };
+
+  // Handle search
+  const handleSearch = () => {
+    navigation.navigate('SearchTransactions');
+  };
+
+  // Handle filter
+  const handleFilter = () => {
+    navigation.navigate('FilterTransactions');
   };
 
   const styles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: COLORS.background,
-
     },
     header: {
       flexDirection: 'row',
@@ -172,29 +233,27 @@ const MoneyTracker = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-   <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
       <View style={styles.header}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
         <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
           <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
-        {/* <Text style={styles.title}>Wrapper</Text> */}
         <Image source={require('../assets/images/logo.png')} style={{ width: wp('20%'), height: wp('8%') }} resizeMode='contain'/>
-        <TouchableOpacity style={styles.searchButton}>
+        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
           <Ionicons name="search" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.monthNav}>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigateMonth(-1)}>
           <Ionicons name="chevron-back" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.monthText}>October, 2024</Text>
-        <TouchableOpacity>
+        <Text style={styles.monthText}>{formatMonth(currentMonth)}</Text>
+        <TouchableOpacity onPress={() => navigateMonth(1)}>
           <Ionicons name="chevron-forward" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
+        <TouchableOpacity style={styles.filterButton} onPress={handleFilter}>
           <Ionicons name="filter" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
       </View>
@@ -203,21 +262,19 @@ const MoneyTracker = () => {
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>EXPENSE</Text>
           <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>
-            ₹{summaryData.expense.toFixed(2)}
+            ₹{summary.expense.toFixed(2)}
           </Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>INCOME</Text>
           <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>
-            ₹{summaryData.income.toFixed(2)}
+            ₹{summary.income.toFixed(2)}
           </Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>TOTAL</Text>
-          <Text style={[styles.summaryAmount, { 
-            color: summaryData.total >= 0 ? '#51cf66' : '#ff6b6b' 
-          }]}>
-            ₹{summaryData.total.toFixed(2)}
+          <Text style={[styles.summaryAmount, { color: summary.total >= 0 ? '#51cf66' : '#ff6b6b' }]}>
+            ₹{summary.total.toFixed(2)}
           </Text>
         </View>
       </View>

@@ -1,14 +1,109 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp
 } from 'react-native-responsive-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const MoneyTracker = () => {
+const MoneyTracker = ({ navigation }) => {
+  // State management
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [transactions, setTransactions] = useState([]);
+  const [summary, setSummary] = useState({
+    expense: 0,
+    income: 0,
+    total: 0
+  });
+
+  // Load transactions from AsyncStorage
+  useEffect(() => {
+    loadTransactions();
+  }, [currentMonth]);
+
+  // Calculate summary whenever transactions change
+  useEffect(() => {
+    calculateSummary();
+  }, [transactions]);
+
+  // Format date to "Month, Year"
+  const formatMonth = (date) => {
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  // Handle month navigation
+  const navigateMonth = (direction) => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(currentMonth.getMonth() + direction);
+    setCurrentMonth(newDate);
+  };
+
+  // Load transactions from storage
+  const loadTransactions = async () => {
+    try {
+      const monthKey = currentMonth.toISOString().slice(0, 7); // Format: YYYY-MM
+      const storedTransactions = await AsyncStorage.getItem(`transactions_${monthKey}`);
+      if (storedTransactions) {
+        setTransactions(JSON.parse(storedTransactions));
+      } else {
+        setTransactions([]);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load transactions');
+    }
+  };
+
+  // Calculate summary from transactions
+  const calculateSummary = () => {
+    const newSummary = transactions.reduce((acc, transaction) => {
+      if (transaction.type === 'expense') {
+        acc.expense += transaction.amount;
+        acc.total -= transaction.amount;
+      } else {
+        acc.income += transaction.amount;
+        acc.total += transaction.amount;
+      }
+      return acc;
+    }, { expense: 0, income: 0, total: 0 });
+
+    setSummary(newSummary);
+  };
+
+  // Handle adding new transaction
+  const handleAddTransaction = () => {
+    // Navigate to Add Transaction screen
+    navigation.navigate('AddTransaction', {
+      onTransactionAdded: async (newTransaction) => {
+        const updatedTransactions = [...transactions, newTransaction];
+        const monthKey = currentMonth.toISOString().slice(0, 7);
+        
+        try {
+          await AsyncStorage.setItem(
+            `transactions_${monthKey}`,
+            JSON.stringify(updatedTransactions)
+          );
+          setTransactions(updatedTransactions);
+        } catch (error) {
+          Alert.alert('Error', 'Failed to save transaction');
+        }
+      }
+    });
+  };
+
+  // Handle search
+  const handleSearch = () => {
+    navigation.navigate('SearchTransactions');
+  };
+
+  // Handle filter
+  const handleFilter = () => {
+    navigation.navigate('FilterTransactions');
+  };
+
   const styles = StyleSheet.create({
+    // ... (keep existing styles)
     container: {
       flex: 1,
       backgroundColor: COLORS.background
@@ -112,26 +207,25 @@ const MoneyTracker = () => {
       {/* header */}
       <View style={styles.header}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-        <TouchableOpacity style={styles.menuButton}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
           <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
-        {/* <Text style={styles.title}>Wrapper</Text> */}
         <Image source={require('../assets/images/logo.png')} style={{ width: wp('20%'), height: wp('8%') }} resizeMode='contain'/>
-        <TouchableOpacity style={styles.searchButton}>
+        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
           <Ionicons name="search" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
       </View>
 
       {/* month navigation */}
       <View style={styles.monthNav}>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigateMonth(-1)}>
           <Ionicons name="chevron-back" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.monthText}>October, 2024</Text>
-        <TouchableOpacity>
+        <Text style={styles.monthText}>{formatMonth(currentMonth)}</Text>
+        <TouchableOpacity onPress={() => navigateMonth(1)}>
           <Ionicons name="chevron-forward" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
+        <TouchableOpacity style={styles.filterButton} onPress={handleFilter}>
           <Ionicons name="filter" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
       </View>
@@ -140,28 +234,36 @@ const MoneyTracker = () => {
       <View style={styles.summary}>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>EXPENSE</Text>
-          <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>₹0.00</Text>
+          <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>
+            ₹{summary.expense.toFixed(2)}
+          </Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>INCOME</Text>
-          <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>₹0.00</Text>
+          <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>
+            ₹{summary.income.toFixed(2)}
+          </Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>TOTAL</Text>
-          <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>₹0.00</Text>
+          <Text style={[styles.summaryAmount, { color: summary.total >= 0 ? '#51cf66' : '#ff6b6b' }]}>
+            ₹{summary.total.toFixed(2)}
+          </Text>
         </View>
       </View>
 
       {/* empty state */}
-      <View style={styles.emptyState}>
-        <Ionicons name="document-text-outline" size={wp('12%')} color={COLORS.text.secondary} />
-        <Text style={styles.emptyStateText}>
-          No record in this month. Tap + to add new expense or income.
-        </Text>
-      </View>
+      {transactions.length === 0 && (
+        <View style={styles.emptyState}>
+          <Ionicons name="document-text-outline" size={wp('12%')} color={COLORS.text.secondary} />
+          <Text style={styles.emptyStateText}>
+            No record in this month. Tap + to add new expense or income.
+          </Text>
+        </View>
+      )}
 
       {/* floating action button */}
-      <TouchableOpacity style={styles.addButton}>
+      <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
     </SafeAreaView>

@@ -59,7 +59,8 @@ const ExpenseCalculator = ({ onClose, onSave }) => {
     const [category, setCategory] = useState('');
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [showAccountModal, setShowAccountModal] = useState(false);
-  
+
+
     const handleNumber = (num) => {
       if (amount === '0') {
         setAmount(num);
@@ -88,6 +89,18 @@ const ExpenseCalculator = ({ onClose, onSave }) => {
       }
     };
   
+    const handleClear = () => {
+      setAmount('0');
+      setExpression('');
+    };
+    const handleBackspace = () => {
+      if (amount.length > 1) {
+        setAmount(amount.slice(0, -1));
+      } else {
+        setAmount('0');
+      }
+    };
+    
     const handleSave = () => {
       if (!category) {
         alert('Please select a category');
@@ -231,169 +244,175 @@ const ExpenseCalculator = ({ onClose, onSave }) => {
         padding: 0,
       },
     });
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose}>
-          <Text style={[styles.headerButton, styles.cancelButton]}>CANCEL</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => onSave(parseFloat(amount), type)}>
-          <Text style={[styles.headerButton, styles.saveButton]}>SAVE</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.typeSelector}>
-        <TouchableOpacity 
-          style={[styles.typeButton, type === 'INCOME' && styles.activeType]}
-          onPress={() => setType('INCOME')}
-        >
-          <Text style={[styles.typeText, type === 'INCOME' && styles.activeTypeText]}>INCOME</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.typeButton, type === 'EXPENSE' && styles.activeType]}
-          onPress={() => setType('EXPENSE')}
-        >
-          <Text style={[styles.typeText, type === 'EXPENSE' && styles.activeTypeText]}>EXPENSE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.typeButton, type === 'TRANSFER' && styles.activeType]}
-          onPress={() => setType('TRANSFER')}
-        >
-          <Text style={[styles.typeText, type === 'TRANSFER' && styles.activeTypeText]}>TRANSFER</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.inputSection}>
-        <TouchableOpacity 
-          style={styles.inputField}
-          onPress={() => setShowAccountModal(true)}
-        >
-          <Text style={{ color: account ? COLORS.text.primary : COLORS.text.secondary }}>
-            {account || 'Account'}
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.inputField}
-          onPress={() => setShowCategoryModal(true)}
-        >
-          <Text style={{ color: category ? COLORS.text.primary : COLORS.text.secondary }}>
-            {category || 'Category'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.inputField}>
-          <TextInput
-            placeholder="Add notes"
-            placeholderTextColor={COLORS.text.secondary}
-            style={styles.noteInput}
-            value={note}
-            onChangeText={setNote}
-          />
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose}>
+            <Text style={[styles.headerButton, styles.cancelButton]}>CANCEL</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSave}>
+            <Text style={[styles.headerButton, styles.saveButton]}>SAVE</Text>
+          </TouchableOpacity>
         </View>
-      </View>
-      <View style={styles.displaySection}>
-        {expression && <Text style={styles.expression}>{expression}</Text>}
-        <Text style={styles.amount}>{amount}</Text>
-      </View>
-
-      <View style={styles.keypad}>
-        {[
-          ['7', '8', '9', '+'],
-          ['4', '5', '6', '-'],
-          ['1', '2', '3', '×'],
-          ['0', '.', '=', '÷']
-        ].map((row, i) => (
-          <View key={i} style={styles.keypadRow}>
-            {row.map((key) => (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.key,
-                  ['+', '-', '×', '÷', '='].includes(key) && styles.operatorKey
-                ]}
-                onPress={() => {
-                  if (key === '=') {
-                    calculate();
-                  } else if (['+', '-', '×', '÷'].includes(key)) {
-                    const operator = key === '×' ? '*' : key === '÷' ? '/' : key;
-                    handleOperator(operator);
-                  } else {
-                    handleNumber(key);
-                  }
-                }}
-              >
-                <Text style={styles.keyText}>{key}</Text>
-              </TouchableOpacity>
-              
-            ))}
-          </View>
+    
+        <View style={styles.typeSelector}>
+          <TouchableOpacity 
+            style={[styles.typeButton, type === 'INCOME' && styles.activeType]}
+            onPress={() => setType('INCOME')}
+          >
+            <Text style={[styles.typeText, type === 'INCOME' && styles.activeTypeText]}>INCOME</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.typeButton, type === 'EXPENSE' && styles.activeType]}
+            onPress={() => setType('EXPENSE')}
+          >
+            <Text style={[styles.typeText, type === 'EXPENSE' && styles.activeTypeText]}>EXPENSE</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.typeButton, type === 'TRANSFER' && styles.activeType]}
+            onPress={() => setType('TRANSFER')}
+          >
+            <Text style={[styles.typeText, type === 'TRANSFER' && styles.activeTypeText]}>TRANSFER</Text>
+          </TouchableOpacity>
+        </View>
+    
+        <View style={styles.inputSection}>
+          <TouchableOpacity 
+            style={styles.inputField}
+            onPress={() => setShowAccountModal(true)}
+          >
+            <Text style={{ color: account ? COLORS.text.primary : COLORS.text.secondary }}>
+              {account || 'Account'}
+            </Text>
+          </TouchableOpacity>
           
-        ))}
+          <TouchableOpacity 
+            style={styles.inputField}
+            onPress={() => setShowCategoryModal(true)}
+          >
+            <Text style={{ color: category ? COLORS.text.primary : COLORS.text.secondary }}>
+              {category || 'Category'}
+            </Text>
+          </TouchableOpacity>
+          
+          <View style={styles.inputField}>
+            <TextInput
+              placeholder="Add notes"
+              placeholderTextColor={COLORS.text.secondary}
+              style={styles.noteInput}
+              value={note}
+              onChangeText={setNote}
+            />
+          </View>
+        </View>
+    
+        <View style={styles.displaySection}>
+          {expression && <Text style={styles.expression}>{expression}</Text>}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.amount}>{amount}</Text>
+            <TouchableOpacity onPress={handleBackspace} style={{ marginLeft: wp('4%') }}>
+              <Ionicons name="backspace-outline" size={wp('6%')} color={COLORS.text.primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+    
+        <View style={styles.keypad}>
+          {[
+            ['7', '8', '9', '+'],
+            ['4', '5', '6', '-'],
+            ['1', '2', '3', '×'],
+            ['0', '.', '=', '/']
+          ].map((row, i) => (
+            <View key={i} style={styles.keypadRow}>
+              {row.map((key) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[
+                    styles.key,
+                    ['+', '-', '×', '/', '=', 'Clear'].includes(key) && styles.operatorKey
+                  ]}
+                  onPress={() => {
+                    if (key === '=') {
+                      calculate();
+                    } else if (key === 'Clear') {
+                      handleClear();
+                    } else if (['+', '-', '×', '/'].includes(key)) {
+                      const operator = key === '×' ? '*' : key === '/' ? '/' : key;
+                      handleOperator(operator);
+                    } else {
+                      handleNumber(key);
+                    }
+                  }}
+                >
+                  <Text style={styles.keyText}>{key}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))}
+        </View>
+    
         {/* Category Selection Modal */}
         <Modal
-            visible={showCategoryModal}
-            animationType="slide"
-            transparent={false}
+          visible={showCategoryModal}
+          animationType="slide"
+          transparent={false}
         >
-            <SafeAreaView style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Select Category</Text>
-                    <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                        <Text style={{ color: COLORS.primary }}>Done</Text>
-                    </TouchableOpacity>
-                </View>
-                <FlatList
-                    data={CATEGORIES[type]}
-                    keyExtractor={(item) => item}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity 
-                            style={styles.listItem}
-                            onPress={() => {
-                                setCategory(item);
-                                setShowCategoryModal(false);
-                            }}
-                        >
-                            <Text style={styles.listItemText}>{item}</Text>
-                        </TouchableOpacity>
-                    )}
-                />
-            </SafeAreaView>
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                <Text style={{ color: COLORS.primary }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={CATEGORIES[type]}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.listItem}
+                  onPress={() => {
+                    setCategory(item);
+                    setShowCategoryModal(false);
+                  }}
+                >
+                  <Text style={styles.listItemText}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </SafeAreaView>
         </Modal>
-
+    
         {/* Account Selection Modal */}
         <Modal
-            visible={showAccountModal}
-            animationType="slide"
-            transparent={false}
+          visible={showAccountModal}
+          animationType="slide"
+          transparent={false}
         >
-            <SafeAreaView style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Select Account</Text>
-                    <TouchableOpacity onPress={() => setShowAccountModal(false)}>
-                        <Text style={{ color: COLORS.primary }}>Done</Text>
-                    </TouchableOpacity>
-                </View>
-                <FlatList
-                    data={ACCOUNTS}
-                    keyExtractor={(item) => item}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity 
-                            style={styles.listItem}
-                            onPress={() => {
-                                setAccount(item);
-                                setShowAccountModal(false);
-                            }}
-                        >
-                            <Text style={styles.listItemText}>{item}</Text>
-                        </TouchableOpacity>
-                    )}
-                />
-            </SafeAreaView>
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Account</Text>
+              <TouchableOpacity onPress={() => setShowAccountModal(false)}>
+                <Text style={{ color: COLORS.primary }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={ACCOUNTS}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.listItem}
+                  onPress={() => {
+                    setAccount(item);
+                    setShowAccountModal(false);
+                  }}
+                >
+                  <Text style={styles.listItemText}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </SafeAreaView>
         </Modal>
-      </View>
-    </SafeAreaView>
-  );
-};
-
-export default ExpenseCalculator;
+      </SafeAreaView>
+    );
+  }
+  export default ExpenseCalculator;    

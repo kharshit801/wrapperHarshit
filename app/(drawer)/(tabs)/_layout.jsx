@@ -9,7 +9,6 @@ import {
 } from 'react-native-responsive-screen';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>

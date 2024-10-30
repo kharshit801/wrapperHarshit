@@ -32,12 +32,11 @@ const TransactionRecord = ({ transaction }) => {
       flexDirection: 'row',
       justifyContent: 'space-between',
     },
-    note: {
-      fontSize: wp('3.5%'),
-      color: COLORS.text.secondary,
-      flex: 1,
+    amount: {
+      fontSize: wp('4%'),
+      fontWeight: '500',
     },
-    account: {
+    note: {
       fontSize: wp('3.5%'),
       color: COLORS.text.secondary,
     },
@@ -51,26 +50,21 @@ const TransactionRecord = ({ transaction }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.category}>{transaction.category}</Text>
-        <Text 
+        <Text
           style={[
             styles.amount,
-            { color: transaction.type === 'EXPENSE' ? '#ff6b6b' : '#51cf66' }
+            { color: transaction.type === 'EXPENSE' ? '#ff6b6b' : '#51cf66' },
           ]}
         >
-        ₹{transaction.amount ? transaction.amount.toFixed(2) : '0.00'}
-         </Text>
+          ₹{transaction.amount !== null && transaction.amount !== undefined ? transaction.amount.toFixed(2) : '0.00'}
+        </Text>
       </View>
       <View style={styles.details}>
-        <Text style={styles.note} numberOfLines={1}>
-          {transaction.note || 'No note'}
-        </Text>
+        <Text style={styles.note}>{transaction.note || 'No note'}</Text>
         <Text style={styles.account}>{transaction.account}</Text>
       </View>
       <Text style={styles.date}>
-        {new Date(transaction.date).toLocaleTimeString([], { 
-          hour: '2-digit', 
-          minute: '2-digit'
-        })}
+        {transaction.date ? new Date(transaction.date).toLocaleString() : 'Invalid date'}
       </Text>
     </View>
   );

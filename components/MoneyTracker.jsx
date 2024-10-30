@@ -9,6 +9,7 @@ import {
 import ExpenseCalculator from './ExpenseCalculator';
 import TransactionRecord from './TransactionRecord';
 import { useNavigation } from '@react-navigation/native';
+import Header from './commonheader';
 
 const MoneyTracker = () => {
   const navigation = useNavigation();
@@ -172,19 +173,7 @@ const MoneyTracker = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-   <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-
-      <View style={styles.header}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
-          <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        {/* <Text style={styles.title}>Wrapper</Text> */}
-        <Image source={require('../assets/images/logo.png')} style={{ width: wp('20%'), height: wp('8%') }} resizeMode='contain'/>
-        <TouchableOpacity style={styles.searchButton}>
-          <Ionicons name="search" size={wp('6%')} color={COLORS.text.primary} />
-        </TouchableOpacity>
-      </View>
+    <Header/>
 
       <View style={styles.monthNav}>
         <TouchableOpacity>

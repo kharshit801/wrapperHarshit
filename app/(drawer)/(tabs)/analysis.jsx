@@ -19,6 +19,7 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
+import Header from '../../../components/commonheader';
 
 const Analysis = () => {
   const navigation = useNavigation();
@@ -57,31 +58,7 @@ const Analysis = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
-
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => navigation.openDrawer()}
-        >
-          <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        <Image
-          source={require('../../../assets/images/logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => navigation.navigate('SearchTransactions')}
-        >
-          <Ionicons name="search" size={wp('6%')} color={COLORS.text.primary} />
-        </TouchableOpacity>
-      </View>
+<Header/>
 
       <ScrollView style={styles.content}>
         <View style={styles.chartContainer}>

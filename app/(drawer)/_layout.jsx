@@ -15,7 +15,7 @@ import {
   
   heightPercentageToDP as hp,
 } from "react-native-responsive-screen";
-import PropTypes from 'prop-types';
+import { COLORS } from "../../constants/theme";
 
 const CustomDrawerContent = (props) => {
   return (
@@ -29,7 +29,7 @@ const CustomDrawerContent = (props) => {
       />
       <View style={styles.profileContainer}>
         <Image
-          source={{ uri: "https://example.com/user-profile.jpg" }}
+          source={require("../../assets/images/logoBlack.png")}
           style={styles.profileImage}
         />
         <Text style={styles.userName}>Team AUXIN</Text>
@@ -113,19 +113,19 @@ const styles = StyleSheet.create({
   drawerContent: {
     flex: 1,
     backgroundColor: "#f4f4f4",
-    paddingTop: hp("2%"),
   },
   profileContainer: {
     alignItems: "center",
     padding: wp("5%"),
     paddingTop: hp("5%"),
-    backgroundColor: "#2f2f2f",
+    backgroundColor: COLORS.background,
     borderBottomWidth: 1,
     borderBottomColor: "#3f3f3f",
   },
   profileImage: {
     width: wp("20%"),
     height: wp("20%"),
+    resizeMode:"contain",
     borderRadius: wp("10%"),
     marginBottom: hp("1%"),
     backgroundColor: "#fff",

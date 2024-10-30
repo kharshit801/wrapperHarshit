@@ -1,136 +1,136 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../constants/theme';
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp
+} from 'react-native-responsive-screen';
 
 const MoneyTracker = () => {
-  const styles = {
+  const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#2f2f2f'
+      backgroundColor: COLORS.background
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: 16
+      padding: wp('4%'),
+      backgroundColor: COLORS.background
     },
     menuButton: {
-      padding: 8
+      padding: wp('2%')
     },
     searchButton: {
-      padding: 8
+      padding: wp('2%')
     },
     title: {
-      fontSize: 24,
+      fontSize: wp('6%'),
       fontWeight: '500',
-      color: '#ffd43b'
+      color: COLORS.secondary
     },
     monthNav: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: 16
+      padding: wp('4%'),
+      backgroundColor: COLORS.lightbackground
     },
     monthText: {
-      fontSize: 18,
+      fontSize: wp('4.5%'),
       fontWeight: '500',
       flex: 1,
       textAlign: 'center',
-      color: '#fff'
+      color: COLORS.text.primary
     },
     filterButton: {
-      marginLeft: 16
+      marginLeft: wp('4%')
     },
     summary: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      padding: 16,
+      padding: wp('4%'),
       borderBottomWidth: 1,
-      borderBottomColor: '#404040'
+      borderBottomColor: COLORS.lightbackground,
+      backgroundColor: COLORS.background
     },
     summaryItem: {
       flex: 1,
       alignItems: 'center'
     },
     summaryLabel: {
-      fontSize: 12,
-      color: '#888',
-      marginBottom: 4
+      fontSize: wp('3%'),
+      color: COLORS.text.secondary,
+      marginBottom: hp('0.5%')
     },
     summaryAmount: {
-      fontSize: 16,
+      fontSize: wp('4%'),
       fontWeight: '500'
     },
     emptyState: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 32
+      padding: wp('8%'),
+      backgroundColor: COLORS.background
     },
     emptyStateText: {
-      color: '#666',
+      color: COLORS.text.secondary,
       textAlign: 'center',
-      marginTop: 16,
-      fontSize: 16
+      marginTop: hp('2%'),
+      fontSize: wp('4%')
     },
     addButton: {
       position: 'absolute',
-      right: 24,
-      bottom: 80,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: '#666',
+      right: wp('6%'),
+      bottom: hp('10%'),
+      width: wp('14%'),
+      height: wp('14%'),
+      borderRadius: wp('7%'),
+      backgroundColor: COLORS.primary,
       justifyContent: 'center',
-      alignItems: 'center'
+      alignItems: 'center',
+      elevation: 5,
+      shadowColor: COLORS.primary,
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: 0.3,
+      shadowRadius: 4.65,
     },
     addButtonText: {
-      fontSize: 32,
-      color: '#fff'
-    },
-    bottomNav: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      padding: 8,
-      borderTopWidth: 1,
-      borderTopColor: '#404040',
-      backgroundColor: '#2f2f2f'
-    },
-    navItem: {
-      alignItems: 'center',
-      padding: 8
-    },
-    navText: {
-      fontSize: 12,
-      marginTop: 4,
-      color: '#fff'
+      fontSize: wp('8%'),
+      color: COLORS.whiteBg
     }
-  };
+  });
 
   return (
     <SafeAreaView style={styles.container}>
       {/* header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="menu" size={24} color="#fff" />
+          <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
         <Text style={styles.title}>Wrapper</Text>
         <TouchableOpacity style={styles.searchButton}>
-          <Ionicons name="search" size={24} color="#fff" />
+          <Ionicons name="search" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
       </View>
 
       {/* month navigation */}
       <View style={styles.monthNav}>
         <TouchableOpacity>
-          <Ionicons name="chevron-back" size={24} color="#fff" />
+          <Ionicons name="chevron-back" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
         <Text style={styles.monthText}>October, 2024</Text>
         <TouchableOpacity>
-          <Ionicons name="chevron-forward" size={24} color="#fff" />
+          <Ionicons name="chevron-forward" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.filterButton}>
-          <Ionicons name="filter" size={24} color="#fff" />
+          <Ionicons name="filter" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
       </View>
 
@@ -150,15 +150,15 @@ const MoneyTracker = () => {
         </View>
       </View>
 
-      {/* ded state */}
+      {/* empty state */}
       <View style={styles.emptyState}>
-        <Ionicons name="document-text-outline" size={48} color="#666" />
+        <Ionicons name="document-text-outline" size={wp('12%')} color={COLORS.text.secondary} />
         <Text style={styles.emptyStateText}>
           No record in this month. Tap + to add new expense or income.
         </Text>
       </View>
 
-      {/* add hover krne wala button */}
+      {/* floating action button */}
       <TouchableOpacity style={styles.addButton}>
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>

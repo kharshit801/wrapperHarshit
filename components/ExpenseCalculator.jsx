@@ -15,6 +15,8 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp
 } from 'react-native-responsive-screen';
+import { useGlobalContext } from '../components/globalProvider';
+import { useNavigation } from '@react-navigation/native';
 
 const CATEGORIES = {
   EXPENSE: [
@@ -50,7 +52,7 @@ const ACCOUNTS = [
   'Savings',
   'Investment'
 ];
-const ExpenseCalculator = ({ onClose, onSave }) => {
+const ExpenseCalculator = ({ onClose}) => {
     const [amount, setAmount] = useState('0');
     const [type, setType] = useState('EXPENSE');
     const [expression, setExpression] = useState('');
@@ -59,6 +61,8 @@ const ExpenseCalculator = ({ onClose, onSave }) => {
     const [category, setCategory] = useState('');
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [showAccountModal, setShowAccountModal] = useState(false);
+    const { onSave } = useGlobalContext();
+    const navigation = useNavigation(); 
 
 
     const handleNumber = (num) => {
@@ -106,17 +110,19 @@ const ExpenseCalculator = ({ onClose, onSave }) => {
         alert('Please select a category');
         return;
       }
-      
-      onSave({
+
+      const transactionData = {
         amount: parseFloat(amount),
         type,
         category,
         account,
         note,
         date: new Date()
-      });
+      };
+
+      onSave(transactionData);
+      onClose();
     };
-  
    
   
   const styles = StyleSheet.create({

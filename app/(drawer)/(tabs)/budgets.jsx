@@ -171,8 +171,8 @@ const styles = StyleSheet.create({
     padding: wp('4%'),
     backgroundColor: COLORS.lightbackground,
     borderRadius: wp('3%'),
-    marginTop: wp('5%'),
-    marginBottom: wp('5%')
+   margin: wp('4%')
+
   },
   selectedCategoryTitle: {
     fontSize: wp('5%'),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import {
@@ -7,11 +7,14 @@ import {
   heightPercentageToDP as hp
 } from 'react-native-responsive-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ExpenseCalculator from './ExpenseCalculator';
+import TransactionRecord from './TransactionRecord';
 
 const MoneyTracker = ({ navigation }) => {
   // State management
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [transactions, setTransactions] = useState([]);
+  const [showCalculator, setShowCalculator] = useState(false);
   const [summary, setSummary] = useState({
     expense: 0,
     income: 0,
@@ -58,12 +61,13 @@ const MoneyTracker = ({ navigation }) => {
   // Calculate summary from transactions
   const calculateSummary = () => {
     const newSummary = transactions.reduce((acc, transaction) => {
-      if (transaction.type === 'expense') {
-        acc.expense += transaction.amount;
-        acc.total -= transaction.amount;
+      const amount = transaction.amount;
+      if (transaction.type === 'EXPENSE') {
+        acc.expense += amount;
+        acc.total -= amount;
       } else {
-        acc.income += transaction.amount;
-        acc.total += transaction.amount;
+        acc.income += amount;
+        acc.total += amount;
       }
       return acc;
     }, { expense: 0, income: 0, total: 0 });
@@ -71,25 +75,26 @@ const MoneyTracker = ({ navigation }) => {
     setSummary(newSummary);
   };
 
-  // Handle adding new transaction
-  const handleAddTransaction = () => {
-    // Navigate to Add Transaction screen
-    navigation.navigate('AddTransaction', {
-      onTransactionAdded: async (newTransaction) => {
-        const updatedTransactions = [...transactions, newTransaction];
-        const monthKey = currentMonth.toISOString().slice(0, 7);
-        
-        try {
-          await AsyncStorage.setItem(
-            `transactions_${monthKey}`,
-            JSON.stringify(updatedTransactions)
-          );
-          setTransactions(updatedTransactions);
-        } catch (error) {
-          Alert.alert('Error', 'Failed to save transaction');
-        }
-      }
-    });
+  // Handle saving new transaction
+  const handleSaveTransaction = async (transactionData) => {
+    const newTransaction = {
+      id: Date.now(),
+      ...transactionData
+    };
+    
+    const updatedTransactions = [newTransaction, ...transactions];
+    const monthKey = currentMonth.toISOString().slice(0, 7);
+    
+    try {
+      await AsyncStorage.setItem(
+        `transactions_${monthKey}`,
+        JSON.stringify(updatedTransactions)
+      );
+      setTransactions(updatedTransactions);
+      setShowCalculator(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save transaction');
+    }
   };
 
   // Handle search
@@ -103,10 +108,9 @@ const MoneyTracker = ({ navigation }) => {
   };
 
   const styles = StyleSheet.create({
-    // ... (keep existing styles)
     container: {
       flex: 1,
-      backgroundColor: COLORS.background
+      backgroundColor: COLORS.background,
     },
     header: {
       flexDirection: 'row',
@@ -179,8 +183,8 @@ const MoneyTracker = ({ navigation }) => {
     },
     addButton: {
       position: 'absolute',
-      right: wp('6%'),
-      bottom: hp('10%'),
+      right: wp('7%'),
+      bottom: hp('8%'),
       width: wp('14%'),
       height: wp('14%'),
       borderRadius: wp('7%'),
@@ -199,14 +203,39 @@ const MoneyTracker = ({ navigation }) => {
     addButtonText: {
       fontSize: wp('8%'),
       color: COLORS.whiteBg
+    },
+    transactionList: {
+      flex: 1,
+      backgroundColor: COLORS.background
     }
   });
 
+  const renderContent = () => {
+    if (transactions.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="document-text-outline" size={wp('12%')} color={COLORS.text.secondary} />
+          <Text style={styles.emptyStateText}>
+            No record in this month. Tap + to add new expense or income.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.transactionList}>
+        {transactions.map(transaction => (
+          <TransactionRecord key={transaction.id} transaction={transaction} />
+        ))}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* header */}
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+
       <View style={styles.header}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
         <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
           <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
@@ -216,7 +245,6 @@ const MoneyTracker = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* month navigation */}
       <View style={styles.monthNav}>
         <TouchableOpacity onPress={() => navigateMonth(-1)}>
           <Ionicons name="chevron-back" size={wp('6%')} color={COLORS.text.primary} />
@@ -230,7 +258,6 @@ const MoneyTracker = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* summary section */}
       <View style={styles.summary}>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>EXPENSE</Text>
@@ -252,20 +279,26 @@ const MoneyTracker = ({ navigation }) => {
         </View>
       </View>
 
-      {/* empty state */}
-      {transactions.length === 0 && (
-        <View style={styles.emptyState}>
-          <Ionicons name="document-text-outline" size={wp('12%')} color={COLORS.text.secondary} />
-          <Text style={styles.emptyStateText}>
-            No record in this month. Tap + to add new expense or income.
-          </Text>
-        </View>
-      )}
+      {renderContent()}
 
-      {/* floating action button */}
-      <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={() => setShowCalculator(true)}
+      >
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
+
+      <Modal
+        visible={showCalculator}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowCalculator(false)}
+      >
+        <ExpenseCalculator
+          onClose={() => setShowCalculator(false)}
+          onSave={handleSaveTransaction}
+        />
+      </Modal>
     </SafeAreaView>
   );
 };

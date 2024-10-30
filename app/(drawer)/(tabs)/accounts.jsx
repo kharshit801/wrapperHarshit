@@ -1,45 +1,24 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../../constants/theme';
-import {
-  widthPercentageToDP as wp,
-  heightPercentageToDP as hp
-} from 'react-native-responsive-screen';
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
-import { router } from 'expo-router';
+import Header from '../../../components/commonheader';
 
 const AccountsScreen = () => {
   const navigation = useNavigation();
   
   const accounts = [
-    {
-      id: 1,
-      type: 'Card',
-      balance: 0.00,
-      icon: 'card-outline'
-    },
-    {
-      id: 2,
-      type: 'Cash',
-      balance: 0.00,
-      icon: 'cash-outline'
-    },
-    {
-      id: 3,
-      type: 'Savings',
-      balance: 0.00,
-      icon: 'wallet-outline'
-    }
+    { id: 1, type: 'Card', balance: 0.00, icon: 'card-outline' },
+    { id: 2, type: 'Cash', balance: 0.00, icon: 'cash-outline' },
+    { id: 3, type: 'Savings', balance: 0.00, icon: 'wallet-outline' }
   ];
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
   const renderAccountCard = (account) => (
-    <TouchableOpacity
-      key={account.id}
-      style={styles.accountCard}
-    >
+    <TouchableOpacity key={account.id} style={styles.accountCard}>
       <View style={styles.accountInfo}>
         <View style={styles.accountIconContainer}>
           <Ionicons name={account.icon} size={wp('6%')} color={COLORS.text.primary} />
@@ -62,18 +41,7 @@ const AccountsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-      
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
-          <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        <Image source={require('../../../assets/images/logo.png')} style={styles.logo} resizeMode='contain'/>
-        <TouchableOpacity style={styles.searchButton}>
-          <Ionicons name="search" size={wp('6%')} color={COLORS.text.primary} />
-        </TouchableOpacity>
-      </View>
-
+      <Header />
       <ScrollView style={styles.content}>
         <View style={styles.totalBalance}>
           <Text style={styles.totalBalanceLabel}>All Accounts</Text>
@@ -84,24 +52,17 @@ const AccountsScreen = () => {
             ₹{totalBalance.toFixed(2)}
           </Text>
         </View>
-
         <View style={styles.summary}>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>EXPENSE SO FAR</Text>
-            <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>
-              ₹000.00
-            </Text>
+            <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>₹000.00</Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>INCOME SO FAR</Text>
-            <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>
-              ₹0.00
-            </Text>
+            <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>₹0.00</Text>
           </View>
         </View>
-
         <Text style={styles.sectionTitle}>Accounts</Text>
-        
         <View style={styles.accountsList}>
           {accounts.map(renderAccountCard)}
           <TouchableOpacity style={styles.addAccountButton}>
@@ -110,13 +71,6 @@ const AccountsScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      
-      {/*man hoga to add kr denge */}
-      {/* <TouchableOpacity style={styles.addButton} onPress={()=>router.push()}>
-        <Text style={styles.addButtonText}>+</Text>
-      // </TouchableOpacity>  */} 
- 
     </SafeAreaView>
   );
 };
@@ -126,25 +80,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: wp('4%'),
-    backgroundColor: COLORS.background
-  },
-  logo: {
-    width: wp('20%'),
-    height: wp('8%')
-  },
-  menuButton: {
-    padding: wp('2%')
-  },
-  searchButton: {
-    padding: wp('2%')
-  },
   content: {
     flex: 1,
+    marginTop: hp('-75%')
   },
   totalBalance: {
     alignItems: 'center',
@@ -243,30 +181,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: wp('2%')
   },
+  
  
-  addButton: {
-    position: 'absolute',
-    right: wp('7%'),
-    bottom: hp('3%'),
-    width: wp('14%'),
-    height: wp('14%'),
-    borderRadius: wp('7%'),
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: COLORS.primary,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-  },
-  addButtonText: {
-    fontSize: wp('8%'),
-    color: COLORS.whiteBg
-  }
 });
 
 export default AccountsScreen;

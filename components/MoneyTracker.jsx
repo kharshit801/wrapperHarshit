@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Modal,Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import {
@@ -8,8 +8,10 @@ import {
 } from 'react-native-responsive-screen';
 import ExpenseCalculator from './ExpenseCalculator';
 import TransactionRecord from './TransactionRecord';
+import { useNavigation } from '@react-navigation/native';
 
 const MoneyTracker = () => {
+  const navigation = useNavigation();
   const [showCalculator, setShowCalculator] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [summaryData, setSummaryData] = useState({
@@ -46,7 +48,8 @@ const MoneyTracker = () => {
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: COLORS.background
+      backgroundColor: COLORS.background,
+
     },
     header: {
       flexDirection: 'row',
@@ -119,8 +122,8 @@ const MoneyTracker = () => {
     },
     addButton: {
       position: 'absolute',
-      right: wp('6%'),
-      bottom: hp('10%'),
+      right: wp('7%'),
+      bottom: hp('8%'),
       width: wp('14%'),
       height: wp('14%'),
       borderRadius: wp('7%'),
@@ -169,10 +172,11 @@ const MoneyTracker = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* header */}
+   <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+
       <View style={styles.header}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-        <TouchableOpacity style={styles.menuButton}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
           <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
         {/* <Text style={styles.title}>Wrapper</Text> */}
@@ -182,7 +186,6 @@ const MoneyTracker = () => {
         </TouchableOpacity>
       </View>
 
-      {/* month navigation */}
       <View style={styles.monthNav}>
         <TouchableOpacity>
           <Ionicons name="chevron-back" size={wp('6%')} color={COLORS.text.primary} />
@@ -196,7 +199,6 @@ const MoneyTracker = () => {
         </TouchableOpacity>
       </View>
 
-      {/* summary section */}
       <View style={styles.summary}>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>EXPENSE</Text>

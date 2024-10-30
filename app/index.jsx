@@ -110,7 +110,7 @@ const WelcomeScreen = () => {
   const handleSlideComplete = async () => {
     try {
       await markWelcomeAsSeen();
-      router.replace('/(tabs)');
+      router.replace('(drawer)');
     } catch (error) {
       console.error('Error marking welcome as seen:', error);
     }
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
       },
       android: {
-        elevation: 8,
+        elevation: 0,
       },
     }),
   },

@@ -11,6 +11,7 @@ import TransactionRecord from './TransactionRecord';
 import { useNavigation } from '@react-navigation/native';
 import Header from './commonheader';
 import { useGlobalContext } from './globalProvider'; 
+import { ScrollView } from 'react-native-gesture-handler';
 
 const MoneyTracker = () => {
   const navigation = useNavigation();
@@ -108,6 +109,7 @@ const MoneyTracker = () => {
     },
     transactionList: {
       flex: 1,
+    
       backgroundColor: COLORS.background,
     },
   });
@@ -125,11 +127,11 @@ const MoneyTracker = () => {
     }
 
     return (
-      <View style={styles.transactionList}>
+      <ScrollView style={styles.transactionList}>
         {state.transactions.map(transaction => (
           <TransactionRecord key={transaction.id} transaction={transaction} />
         ))}
-      </View>
+      </ScrollView>
     );
   };
 

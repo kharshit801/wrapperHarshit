@@ -17,12 +17,10 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
-import { useNavigation } from '@react-navigation/native';
 import Header from '../../../components/commonheader';
 import { useGlobalContext } from '../../../components/globalProvider';
 
 const Analysis = () => {
-  const navigation = useNavigation();
   const { state } = useGlobalContext();
   const { transactions } = state;
 
@@ -216,6 +214,10 @@ const Analysis = () => {
     ],
   };
 
+  const maxValue = Math.max(...Object.values(processedData.categories));
+
+  const yAxisMaximum = Math.ceil(maxValue / 1000) * 1000;
+
   const pieChartData = Object.entries(processedData.categories).map(([category, amount], index) => ({
     name: category,
     amount,
@@ -273,12 +275,27 @@ const Analysis = () => {
               decimalPlaces: 0,
               color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
               labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              barPercentage: 0.7,
+              propsForVerticalLabels: {
+                fontSize: wp('3%'),
+              },
+              propsForHorizontalLabels: {
+                fontSize: wp('3%'),
+              },
+              // Add these configurations to ensure the chart starts from zero
+              formatYLabel: (value) => Math.round(value).toString(),
+              segments: 5,
+              // Set minimum value to 0 and maximum to calculated ceiling
+              min: 0,
+              max: yAxisMaximum
             }}
             style={{
               marginVertical: hp('1%'),
               borderRadius: wp('4%'),
               alignSelf: 'center',
             }}
+            showValuesOnTopOfBars={true}
+            fromZero={true}  // Add this prop to ensure the chart starts from zero
           />
         </View>
 

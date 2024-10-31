@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   ScrollView,
   View,
@@ -19,10 +19,41 @@ import {
 } from 'react-native-responsive-screen';
 import Header from '../../../components/commonheader';
 import { useGlobalContext } from '../../../components/globalProvider';
+import { getAIRecommendations } from '../../../utils/aiService';
 
 const Analysis = () => {
   const { state } = useGlobalContext();
-  const { transactions } = state;
+  //console.log("Transactions data:", state.transactions);
+  const { summary, transactions } = state;
+  const [ recommendations, setRecommendations ] = useState([]);
+  const [ error, setError ] = useState(null);
+  const [ footHeight, setFootHeight ] = useState(hp('6%'));
+  const [ isFooterExpanded, setIsFooterExpanded ] = useState(false);
+  const footerAnimatedValue = useRef(new Animated.Value(hp('6%'))).current;
+
+  // fetch AI recommendations based on summary and transaction
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      const response = await getAIRecommendations(summary, transactions);
+      if (Array.isArray(response)) {
+        setRecommendations(response);
+      } else {
+        setRecommendations([response]);
+      }
+    };
+    fetchRecommendations();
+  }, [summary, transactions]);
+  
+  const handleFooterPress = () => {
+    Animated.timing(footerAnimatedValue, {
+      toValue: isFooterExpanded ? hp('6%') : hp('50%'),
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+    setIsFooterExpanded(!isFooterExpanded);
+  };
+
+  const screenWidth = Dimensions.get('window').width;
 
   // Get last 5 months including current month
   const getLast5Months = () => {
@@ -42,6 +73,7 @@ const Analysis = () => {
 
   // Process transaction data for charts
   const processedData = useMemo(() => {
+   // console.log("Processed Data:", processedData);
     const last5Months = getLast5Months();
     
     // Initialize monthly data with 0 values for all months
@@ -106,6 +138,7 @@ const Analysis = () => {
 
   // Generate recommendations based on transaction data
   const generateRecommendations = useMemo(() => {
+    console.log("Generated Recommendations:", generateRecommendations);
     const recommendations = [];
     const last5Months = getLast5Months();
     
@@ -176,22 +209,7 @@ const Analysis = () => {
     return recommendations;
   }, [transactions, processedData]);
 
-  const [recommendations, setRecommendations] = useState(generateRecommendations);
-  const [footerHeight, setFooterHeight] = useState(hp('6%'));
-  const [isFooterExpanded, setIsFooterExpanded] = useState(false);
-  const footerAnimatedValue = useRef(new Animated.Value(footerHeight)).current;
-
-  const handleFooterPress = () => {
-    Animated.timing(footerAnimatedValue, {
-      toValue: isFooterExpanded ? hp('6%') : hp('50%'),
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-    setIsFooterExpanded(!isFooterExpanded);
-  };
-
-  const screenWidth = Dimensions.get('window').width;
-
+  
   // Prepare data for charts
   const monthlyChartData = {
     labels: processedData.monthLabels,
@@ -346,29 +364,29 @@ const Analysis = () => {
         </TouchableOpacity>
 
         {isFooterExpanded && (
-          <View style={styles.recommendationsContainer}>
-            <ScrollView>
-              {recommendations.map((recommendation, index) => (
-                <View key={index} style={styles.recommendationCard}>
-                  <Text style={styles.recommendationTitle}>
-                    {recommendation.title}
-                  </Text>
-                  <Text style={styles.recommendationDescription}>
-                    {recommendation.description}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.recommendationButton}
-                    onPress={() => handleRecommendationPress(recommendation)}
-                  >
-                    <Text style={styles.recommendationButtonText}>
-                      {recommendation.buttonText}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+  <View style={styles.recommendationsContainer}>
+    <ScrollView>
+      {recommendations.map((recommendation, index) => (
+        <View key={index} style={styles.recommendationCard}>
+          <Text style={styles.recommendationTitle}>
+            {recommendation.title}
+          </Text>
+          <Text style={styles.recommendationDescription}>
+            {recommendation.description}
+          </Text>
+          <TouchableOpacity
+            style={styles.recommendationButton}
+            onPress={() => handleRecommendationPress(recommendation)}
+          >
+            <Text style={styles.recommendationButtonText}>
+              {recommendation.buttonText}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+    </ScrollView>
+  </View>
+)}
       </Animated.View>
     </SafeAreaView>
   );
@@ -472,6 +490,12 @@ const styles = StyleSheet.create({
     fontSize: wp('3.5%'),
     fontWeight: 'bold',
   },
+  recommendationText: {
+    fontSize: wp('4%'),
+    color: '#FFF', 
+    padding: wp('4%'),
+  },
+  
 });
 
 export default Analysis;

@@ -5,8 +5,12 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp
 } from 'react-native-responsive-screen';
+import { format, parseISO } from 'date-fns';
+import { useGlobalContext } from './globalProvider';
 
 const TransactionRecord = ({ transaction }) => {
+  const { formatDate } = useGlobalContext();
+
   const styles = StyleSheet.create({
     container: {
       padding: wp('4%'),
@@ -24,10 +28,6 @@ const TransactionRecord = ({ transaction }) => {
       fontWeight: '500',
       color: COLORS.text.primary,
     },
-    amount: {
-      fontSize: wp('4%'),
-      fontWeight: '500',
-    },
     details: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -40,11 +40,26 @@ const TransactionRecord = ({ transaction }) => {
       fontSize: wp('3.5%'),
       color: COLORS.text.secondary,
     },
-    date: {
+    account: {
       fontSize: wp('3.5%'),
       color: COLORS.text.secondary,
     },
+    date: {
+      fontSize: wp('3.5%'),
+      color: COLORS.text.secondary,
+      marginTop: hp('0.5%'),
+    },
   });
+
+  const formatDateTime = (dateString) => {
+    try {
+      if (!dateString) return 'Invalid date';
+      return format(parseISO(dateString), 'MMM d, yyyy h:mm a');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -56,7 +71,9 @@ const TransactionRecord = ({ transaction }) => {
             { color: transaction.type === 'EXPENSE' ? '#ff6b6b' : '#51cf66' },
           ]}
         >
-          ₹{transaction.amount !== null && transaction.amount !== undefined ? transaction.amount.toFixed(2) : '0.00'}
+          ₹{transaction.amount !== null && transaction.amount !== undefined 
+            ? transaction.amount.toFixed(2) 
+            : '0.00'}
         </Text>
       </View>
       <View style={styles.details}>
@@ -64,7 +81,7 @@ const TransactionRecord = ({ transaction }) => {
         <Text style={styles.account}>{transaction.account}</Text>
       </View>
       <Text style={styles.date}>
-        {transaction.date ? new Date(transaction.date).toLocaleString() : 'Invalid date'}
+        {formatDateTime(transaction.date)}
       </Text>
     </View>
   );

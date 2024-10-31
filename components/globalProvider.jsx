@@ -1,5 +1,6 @@
 import React, { createContext, useReducer, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { format, parseISO, addMonths, subMonths } from 'date-fns';
 
 const STORAGE_KEY = 'APP_STATE';
 
@@ -9,7 +10,8 @@ const initialState = {
         expense: 0,
         income: 0,
         total: 0
-    }
+    },
+    currentMonth: new Date().toISOString() // Store as ISO string
 };
 
 const globalReducer = (state, action) => {
@@ -26,6 +28,7 @@ const globalReducer = (state, action) => {
                 .reduce((sum, t) => sum + t.amount, 0);
 
             newState = {
+                ...state,
                 transactions: updatedTransactions,
                 summary: {
                     expense,
@@ -34,7 +37,19 @@ const globalReducer = (state, action) => {
                 }
             };
             return newState;
-        
+
+        case 'NEXT_MONTH':
+            return {
+                ...state,
+                currentMonth: addMonths(new Date(state.currentMonth), 1).toISOString()
+            };
+            
+        case 'PREVIOUS_MONTH':
+            return {
+                ...state,
+                currentMonth: subMonths(new Date(state.currentMonth), 1).toISOString()
+            };
+    
         case 'CLEAR_TRANSACTIONS':
             newState = { 
                 ...state, 
@@ -42,10 +57,16 @@ const globalReducer = (state, action) => {
                 summary: initialState.summary 
             };
             return newState;
-            
+        
         case 'LOAD_STATE':
             return action.payload || initialState;
-        
+
+        case 'SET_MONTH':
+            return { 
+                ...state, 
+                currentMonth: new Date(action.payload).toISOString() 
+            };
+
         default:
             return state;
     }
@@ -94,17 +115,32 @@ export const GlobalProvider = ({ children }) => {
             category,
             account,
             note,
-            date: date || new Date().toISOString()
+            date: date ? new Date(date).toISOString() : new Date().toISOString()
         };
-
+    
         dispatch({
             type: 'ADD_TRANSACTION',
             payload: transactionData
         });
     };
 
+    // Helper function to format dates for display
+    const formatDate = (dateString) => {
+        try {
+            return format(new Date(dateString), 'yyyy-MM-dd');
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return format(new Date(), 'yyyy-MM-dd');
+        }
+    };
+
     return (
-        <GlobalContext.Provider value={{ state, dispatch, onSave }}>
+        <GlobalContext.Provider value={{ 
+            state, 
+            dispatch, 
+            onSave,
+            formatDate // Expose formatDate function to components
+        }}>
             {children}
         </GlobalContext.Provider>
     );

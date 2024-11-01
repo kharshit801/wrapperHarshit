@@ -7,8 +7,32 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp
 } from 'react-native-responsive-screen';
+import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useGlobalContext } from '../../../components/globalProvider';
 
 export default function TabLayout() {
+
+  const { state, dispatch, changeLanguage } = useGlobalContext();
+  const { t ,i18n} = useTranslation();
+
+  const handleLanguageSelect = (language) => {
+    console.log("Current language in state:", state.language);
+    changeLanguage(language);
+    setIsModalVisible(false); 
+    console.log("Language changed to", language);
+};
+
+useEffect(() => {
+    
+  if (state.language && i18n.language !== state.language) {
+    i18n.changeLanguage(state.language);
+  }
+  else{
+    i18n.changeLanguage(state.language);
+  }
+}, [state.language]);
+
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -35,7 +59,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Records',
+          title: t('Records'),
           tabBarIcon: ({ color }) => (
             <Ionicons name="list" size={wp('6%')} color={color} />
           ),
@@ -44,7 +68,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="analysis"
         options={{
-          title: 'Analysis',
+          title: t('Analysis'),
           tabBarIcon: ({ color }) => (
             <Ionicons name="pie-chart" size={wp('6%')} color={color} />
           ),
@@ -53,7 +77,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="budgets"
         options={{
-          title: 'Budgets',
+          title: t('Budgets'),
           tabBarIcon: ({ color }) => (
             <Ionicons name="wallet" size={wp('6%')} color={color} />
           ),
@@ -62,7 +86,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="accounts"
         options={{
-          title: 'Accounts',
+          title: t('Accounts'),
           tabBarIcon: ({ color }) => (
             <Ionicons name="wallet" size={wp('6%')} color={color} />
           ),
@@ -71,7 +95,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="categories"
         options={{
-          title: 'Categories',
+          title: t('Categories'),
           tabBarIcon: ({ color }) => (
             <Ionicons name="pricetags" size={wp('6%')} color={color} />
           ),

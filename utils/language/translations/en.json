@@ -58,5 +58,19 @@
   "addNewCategory": "ADD NEW CATEGORY",
   "ofTotalBudgetUsed": "% of total budget used",
    "selectLanguage": "Select Language",
-     "close": "Close"
+     "close": "Close",
+     "Slide to Start": "Slide to start",
+     "Real-Time Tracking": "📊 Real-Time Tracking",
+     "Monitor your finances as they happen": "Monitor your finances as they happen",
+     "Smart Budgeting": "🎯 Smart Budgeting",
+     "AI-powered budget recommendations": "AI-powered budget recommendations",
+     "Detailed Analytics": "📈 Detailed Analytics",
+     "Understand your spending patterns": "Understand your spending patterns",
+    "Records": "Records",
+  "Analysis": "Analysis",
+  "Budgets": "Budgets",
+  "Accounts": "Accounts",
+  "Categories": "Categories"
+     
+
 }

@@ -43,7 +43,7 @@ useEffect(() => {
     i18n.changeLanguage(state.language);
   }
   else{
-    i18n.changeLanguage('en');
+    i18n.changeLanguage(state.language);
   }
 }, [state.language]);
 

@@ -75,7 +75,7 @@
       "expo-router",
       [
         "expo-build-properties",
-        "expo-notifications",
+        
         {
           "android": {
             "compileSdkVersion": 34,

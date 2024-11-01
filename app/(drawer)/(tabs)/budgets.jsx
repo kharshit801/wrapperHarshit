@@ -16,7 +16,7 @@ const BudgetsScreen = () => {
     if (state.language && i18n.language !== state.language) {
       i18n.changeLanguage(state.language);
     } else {
-      i18n.changeLanguage('en');
+      i18n.changeLanguage(state.language);
     }
   }, [state.language]); 
 
@@ -27,8 +27,8 @@ const BudgetsScreen = () => {
 
 
   const [budgets, setBudgets] = useState([
-    { id: 'food', title: 'Food & Grocery', icon: 'shopping-basket', limit: 5000, spent: 1000, budgeted: true, category: 'essential' },
-    { id: 'bills', title: 'Bills', icon: 'file-invoice-dollar', limit: 3000, spent: 1000, budgeted: true, category: 'essential' },
+    { id: 'food', title: 'Food & Grocery', icon: 'shopping-basket', limit: 5000, spent: 5000, budgeted: true, category: 'essential' },
+    { id: 'bills', title: 'Bills', icon: 'file-invoice-dollar', limit: 3000, spent: 3000, budgeted: true, category: 'essential' },
     { id: 'car', title: 'Car', icon: 'car', limit: 2000, spent: 1800, budgeted: true, category: 'transport' },
     { id: 'clothing', title: 'Clothing', icon: 'tshirt', limit: 1500, spent: 1200, budgeted: true, category: 'personal' },
     { id: 'education', title: 'Education', icon: 'graduation-cap', limit: 4000, spent: 3800, budgeted: true, category: 'personal' },

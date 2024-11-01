@@ -16,13 +16,19 @@ import * as Haptics from 'expo-haptics';
 import { useUserPreferences } from '../hooks/useUserPreferences';
 import { COLORS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
+import { useGlobalContext } from '../components/globalProvider';
 const BUTTON_WIDTH = wp(15);
 const CONTAINER_WIDTH = wp(85);
 const THRESHOLD = CONTAINER_WIDTH - BUTTON_WIDTH - wp(2.5);
 
+
+
 const SlideButton = ({ onSlideComplete }) => {
   const pan = useRef(new Animated.ValueXY()).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -67,6 +73,8 @@ const SlideButton = ({ onSlideComplete }) => {
     outputRange: [1, 0],
   });
 
+  
+
   return (
     <View style={styles.sliderContainer}>
       <View style={styles.sliderTrack}>
@@ -91,6 +99,26 @@ const WelcomeScreen = () => {
   const { markWelcomeAsSeen, isLoading } = useUserPreferences();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+
+  const { state, dispatch, changeLanguage } = useGlobalContext();
+  const { t ,i18n} = useTranslation();
+
+  const handleLanguageSelect = (language) => {
+    console.log("Current language in state:", state.language);
+    changeLanguage(language);
+    setIsModalVisible(false); 
+    console.log("Language changed to", language);
+};
+
+useEffect(() => {
+    
+  if (state.language && i18n.language !== state.language) {
+    i18n.changeLanguage(state.language);
+  }
+  else{
+    i18n.changeLanguage(state.language);
+  }
+}, [state.language]);
 
   useEffect(() => {
     Animated.parallel([
@@ -122,6 +150,7 @@ const WelcomeScreen = () => {
     return null;
   }
 
+
   return (
     <SafeAreaView style={styles.mainContainer}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
@@ -136,9 +165,6 @@ const WelcomeScreen = () => {
           ]}
         >
           <Image source={require('../assets/images/logo.png')} style={{ width: wp(72), height: wp(30), resizeMode:"contain"}} />
-
-        
-  
         </Animated.View>
 
         <Animated.View 
@@ -151,26 +177,27 @@ const WelcomeScreen = () => {
           ]}
         >
           <View style={styles.featureItem}>
-            <Text style={styles.featureTitle}>📊 Real-Time Tracking</Text>
-            <Text style={styles.featureDescription}>Monitor your finances as they happen</Text>
+            <Text style={styles.featureTitle}>{t('Real-Time Tracking')}</Text>
+            <Text style={styles.featureDescription}>{t('Monitor your finances as they happen')}</Text>
           </View>
           <View style={styles.featureItem}>
-            <Text style={styles.featureTitle}>🎯 Smart Budgeting</Text>
-            <Text style={styles.featureDescription}>AI-powered budget recommendations</Text>
+            <Text style={styles.featureTitle}>{t('Smart Budgeting')}</Text>
+            <Text style={styles.featureDescription}>{t('AI-powered budget recommendations')}</Text>
           </View>
           <View style={styles.featureItem}>
-            <Text style={styles.featureTitle}>📈 Detailed Analytics</Text>
-            <Text style={styles.featureDescription}>Understand your spending patterns</Text>
+            <Text style={styles.featureTitle}>{t('Detailed Analytics')}</Text>
+            <Text style={styles.featureDescription}>{t('Understand your spending patterns')}</Text>
           </View>
         </Animated.View>
 
         <View style={styles.buttonContainer}>
-          <SlideButton onSlideComplete={handleSlideComplete} />
+          <SlideButton onSlideComplete={handleSlideComplete} buttonText={t('slideToStart')} />
         </View>
       </View>
     </SafeAreaView>
   );
 };
+  
 
 const styles = StyleSheet.create({
   mainContainer: {

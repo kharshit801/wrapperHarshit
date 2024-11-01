@@ -6,6 +6,7 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import Header from '../../../components/commonheader';
 import { useGlobalContext } from '../../../components/globalProvider';
 import { useTranslation } from 'react-i18next';
+import { useBudgetNotifications, BudgetNotificationListener } from '../../../components/Budgetnotification';
 
 const BudgetsScreen = () => {
   const { state, dispatch, changeLanguage } = useGlobalContext();
@@ -17,12 +18,18 @@ const BudgetsScreen = () => {
     } else {
       i18n.changeLanguage('en');
     }
-  }, [state.language]);
+  }, [state.language]); 
+
+  // see ye notification wala part abhi jo spent data use kar rha hai vo static hai
+  // jab async data milega tab use karna haito bas sate me lake rkahna hoga and jab limit exceed hogi notify ho jayega user
+  // now work on fecthing data fro records to this spent data
+
+
 
   const [budgets, setBudgets] = useState([
-    { id: 'food', title: 'Food & Grocery', icon: 'shopping-basket', limit: 5000, spent: 2500, budgeted: true, category: 'essential' },
-    { id: 'bills', title: 'Bills', icon: 'file-invoice-dollar', limit: 3000, spent: 1800, budgeted: true, category: 'essential' },
-    { id: 'car', title: 'Car', icon: 'car', limit: 2000, spent: 500, budgeted: true, category: 'transport' },
+    { id: 'food', title: 'Food & Grocery', icon: 'shopping-basket', limit: 5000, spent: 1000, budgeted: true, category: 'essential' },
+    { id: 'bills', title: 'Bills', icon: 'file-invoice-dollar', limit: 3000, spent: 1000, budgeted: true, category: 'essential' },
+    { id: 'car', title: 'Car', icon: 'car', limit: 2000, spent: 1800, budgeted: true, category: 'transport' },
     { id: 'clothing', title: 'Clothing', icon: 'tshirt', limit: 1500, spent: 1200, budgeted: true, category: 'personal' },
     { id: 'education', title: 'Education', icon: 'graduation-cap', limit: 4000, spent: 3800, budgeted: true, category: 'personal' },
   ]);
@@ -32,9 +39,23 @@ const BudgetsScreen = () => {
   const totalRemaining = totalBudget - totalSpent;
   const spentPercentage = (totalSpent / totalBudget) * 100;
 
+const { checkBudgetThresholds, sendBudgetNotification } = useBudgetNotifications();
+
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [newLimit, setNewLimit] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+
+  // budget pe nazar rakhenge yaha se
+  useEffect(() => {
+    checkBudgetThresholds(budgets);
+  }, [budgets, checkBudgetThresholds]);
+
+   // Handle incoming notifications
+   const handleNotificationReceived = (notification) => {
+    const { budgetId, percentage } = notification.request.content.data;
+    console.log(`Received notification for budget ${budgetId} at ${percentage}%`);
+    
+  };
 
   const openEditModal = (budget) => {
     setSelectedBudget(budget);
@@ -43,15 +64,24 @@ const BudgetsScreen = () => {
   };
 
   const saveBudgetChange = () => {
-    setBudgets(budgets.map(budget => 
-      budget.id === selectedBudget.id ? { ...budget, limit: parseInt(newLimit, 10) } : budget
-    ));
+    const updatedBudgets = budgets.map(budget => {
+      if (budget.id === selectedBudget.id) {
+        const updatedBudget = { ...budget, limit: parseInt(newLimit, 10) };
+        // Check if the new limit triggers any notifications
+        sendBudgetNotification(updatedBudget);
+        return updatedBudget;
+      }
+      return budget;
+    });
+    
+    setBudgets(updatedBudgets);
     setModalVisible(false);
   };
 
   const getBudgetStatus = (spent, limit) => {
     const percentage = (spent / limit) * 100;
     if (percentage >= 90) return { color: '#ff6b6b', message: 'Critical' };
+
     if (percentage >= 75) return { color: '#ffd43b', message: 'Warning' };
     return { color: '#51cf66', message: 'On Track' };
   };
@@ -105,6 +135,7 @@ const BudgetsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+       <BudgetNotificationListener onNotificationReceived={handleNotificationReceived} />
       <Header />
       <ScrollView style={styles.content}>
         <View style={styles.totalBalance}>

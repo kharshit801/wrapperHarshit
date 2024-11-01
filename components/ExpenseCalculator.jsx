@@ -248,17 +248,22 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       note,
       date,
       lastModified: new Date().toISOString(),
-      isUpdate: isEditMode // Add flag to indicate if this is an update
+      isUpdate: isEditMode 
     };
 
     onSave(transactionData);
     onClose();
   };
   const handleSave = () => {
+    if (!account){
+      Alert.alert("Error", "Please select an account");
+      return;
+    }
     if (!category) {
       Alert.alert('Error', 'Please select a category');
       return;
     }
+ 
 
 
     // If we're editing or it's an income transaction, save directly

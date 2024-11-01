@@ -12,7 +12,6 @@ import { useGlobalContext } from './globalProvider';
 const TransactionRecord = ({ transaction, onEdit }) => {
   const { dispatch } = useGlobalContext();
 
-  // Format date helper function
   const formatDateTime = (dateString) => {
     try {
       if (!dateString) return 'No date';
@@ -24,7 +23,10 @@ const TransactionRecord = ({ transaction, onEdit }) => {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e) => {
+    // Prevent the edit action from triggering when delete is pressed
+    e.stopPropagation();
+    
     Alert.alert(
       "Delete Transaction",
       "Are you sure you want to delete this transaction?",
@@ -45,44 +47,46 @@ const TransactionRecord = ({ transaction, onEdit }) => {
   };
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.container}
-      onLongPress={handleDelete}
+      onPress={() => onEdit && onEdit(transaction)}
+      activeOpacity={0.7}
     >
-      <View style={styles.header}>
+      <View style={styles.mainContent}>
         <Text style={styles.category}>{transaction.category}</Text>
-        <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            onPress={() => onEdit && onEdit(transaction)}
-            style={styles.actionButton}
-          >
-            <Ionicons name="pencil" size={wp('5%')} color={COLORS.text.secondary} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={handleDelete}
-            style={styles.actionButton}
-          >
-            <Ionicons name="trash" size={wp('5%')} color={COLORS.text.secondary} />
-          </TouchableOpacity>
-          <Text
-            style={[
-              styles.amount,
-              { color: transaction.type === 'EXPENSE' ? '#ff6b6b' : '#51cf66' },
-            ]}
-          >
-            ₹{transaction.amount !== null && transaction.amount !== undefined 
-              ? transaction.amount.toFixed(2) 
-              : '0.00'}
-          </Text>
+        <Text
+          style={[
+            styles.amount,
+            { color: transaction.type === 'EXPENSE' ? '#ff6b6b' : '#51cf66' },
+          ]}
+        >
+          ₹{transaction.amount !== null && transaction.amount !== undefined
+            ? transaction.amount.toFixed(2)
+            : '0.00'}
+        </Text>
+      </View>
+
+      <Text style={styles.note}>{transaction.note || 'No note'}</Text>
+
+      <View style={styles.bottomRow}>
+        <View style={styles.leftInfo}>
+          <Text style={styles.account}>{transaction.account}</Text>
+          <Text style={styles.dot}>•</Text>
+          <Text style={styles.date}>{formatDateTime(transaction.date)}</Text>
         </View>
+        
+        <TouchableOpacity
+          onPress={handleDelete}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.deleteButton}
+        >
+          <Ionicons 
+            name="trash-outline" 
+            size={wp('3.8%')} 
+            color={COLORS.text.secondary}
+          />
+        </TouchableOpacity>
       </View>
-      <View style={styles.details}>
-        <Text style={styles.note}>{transaction.note || 'No note'}</Text>
-        <Text style={styles.account}>{transaction.account}</Text>
-      </View>
-      <Text style={styles.date}>
-        {formatDateTime(transaction.date)}
-      </Text>
     </TouchableOpacity>
   );
 };
@@ -94,19 +98,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.lightbackground,
   },
-  header: {
+  mainContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: hp('1%'),
+    alignItems: 'center',
+    marginBottom: hp('0.5%'),
   },
   category: {
     fontSize: wp('4%'),
-    fontWeight: '500',
+    fontWeight: '800',
     color: COLORS.text.primary,
-  },
-  details: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   amount: {
     fontSize: wp('4%'),
@@ -115,24 +116,35 @@ const styles = StyleSheet.create({
   note: {
     fontSize: wp('3.5%'),
     color: COLORS.text.secondary,
+    marginBottom: hp('1%'),
   },
-  account: {
-    fontSize: wp('3.5%'),
-    color: COLORS.text.secondary,
-  },
-  date: {
-    fontSize: wp('3.5%'),
-    color: COLORS.text.secondary,
-    marginTop: hp('0.5%'),
-  },
-  actionButtons: {
+  bottomRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  actionButton: {
-    padding: wp('2%'),
-    marginRight: wp('2%'),
+  leftInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
+  account: {
+    fontSize: wp('3.2%'),
+    color: COLORS.text.secondary,
+  },
+  dot: {
+    fontSize: wp('3.2%'),
+    color: COLORS.text.secondary,
+    marginHorizontal: wp('1.5%'),
+  },
+  date: {
+    fontSize: wp('3.2%'),
+    color: COLORS.text.secondary,
+  },
+  deleteButton: {
+    opacity: 0.6,
+    padding: wp('1%'),
+  }
 });
 
 export default TransactionRecord;

@@ -13,9 +13,9 @@ import {
 import { useRouter } from 'expo-router';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import * as Haptics from 'expo-haptics';
-import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useUserPreferences } from '../hooks/useUserPreferences';
 import { COLORS } from '../constants/theme';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const BUTTON_WIDTH = wp(15);
 const CONTAINER_WIDTH = wp(85);
 const THRESHOLD = CONTAINER_WIDTH - BUTTON_WIDTH - wp(2.5);
@@ -114,6 +114,8 @@ const WelcomeScreen = () => {
     } catch (error) {
       console.error('Error marking welcome as seen:', error);
     }
+
+   
   };
 
   if (isLoading) {

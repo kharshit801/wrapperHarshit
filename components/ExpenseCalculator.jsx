@@ -84,13 +84,15 @@ const PAYMENT_METHODS = [
 
 const MERCHANT_UPI = "blurofficialchannel@okaxis"; // Replace with your UPI ID
 
-const ExpenseCalculator = ({ onClose }) => {
-  const [amount, setAmount] = useState('0');
-  const [type, setType] = useState('EXPENSE');
+const ExpenseCalculator = ({ onClose, initialData }) => {
+  // Track whether we're in edit mode based on initialData presence
+  const isEditMode = Boolean(initialData);
+  
+  const [type, setType] = useState(initialData?.type || 'EXPENSE');
   const [expression, setExpression] = useState('');
-  const [note, setNote] = useState('');
-  const [account, setAccount] = useState('Cash');
-  const [category, setCategory] = useState('');
+  const [note, setNote] = useState(initialData?.note || '');
+  const [account, setAccount] = useState(initialData?.account || '');
+  const [category, setCategory] = useState(initialData?.category || '');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -98,13 +100,17 @@ const ExpenseCalculator = ({ onClose }) => {
   const [availableUPIApps, setAvailableUPIApps] = useState([]);
   const [paymentPending, setPaymentPending] = useState(false);
   const [isLoadingApps, setIsLoadingApps] = useState(false);
-
+  const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
+  const [date, setDate] = useState(initialData ? new Date(initialData.date) : new Date());
   const { onSave } = useGlobalContext();
   const navigation = useNavigation();
 
   useEffect(() => {
-    checkInstalledApps();
-  }, []);
+    // Only check for UPI apps if we're not in edit mode
+    if (!isEditMode) {
+      checkInstalledApps();
+    }
+  }, [isEditMode]);
 
   const checkInstalledApps = async () => {
     setIsLoadingApps(true);
@@ -126,7 +132,6 @@ const ExpenseCalculator = ({ onClose }) => {
 
   const handlePayment = (paymentMethod) => {
     setShowPaymentModal(false);
-    
     if (paymentMethod === 'cash') {
       setTimeout(() => {
         saveTransaction();
@@ -144,7 +149,6 @@ const ExpenseCalculator = ({ onClose }) => {
     }
   };
 
-
   const handleUPIApp = async (app) => {
     try {
       setShowUPIAppsModal(false);
@@ -158,7 +162,6 @@ const ExpenseCalculator = ({ onClose }) => {
       );
 
       if (result) {
-        // Show payment confirmation dialog
         Alert.alert(
           'Payment Confirmation',
           'Did you complete the payment successfully?',
@@ -231,39 +234,41 @@ const ExpenseCalculator = ({ onClose }) => {
       setAmount('0');
     }
   };
-  
+
   const saveTransaction = () => {
-    // Remove the line that closes payment modal since it's already closed in handlePayment
     setShowUPIAppsModal(false);
     setPaymentPending(false);
-  
+
     const transactionData = {
+      id: initialData?.id || Date.now(), // Keep the original ID if editing
       amount: parseFloat(amount),
       type,
       category,
       account,
       note,
-      date: new Date()
+      date,
+      lastModified: new Date().toISOString(),
+      isUpdate: isEditMode // Add flag to indicate if this is an update
     };
-  
+
     onSave(transactionData);
     onClose();
   };
-  
-
   const handleSave = () => {
     if (!category) {
       Alert.alert('Error', 'Please select a category');
       return;
     }
-  
-    if (type === 'EXPENSE') {
-      setShowPaymentModal(true);
-    } else {
+
+
+    // If we're editing or it's an income transaction, save directly
+    if (isEditMode || type === 'INCOME') {
       saveTransaction();
+    } else {
+      // Only show payment modal for new expenses
+      setShowPaymentModal(true);
     }
   };
-
 
   const renderUPIAppsModal = () => (
     <Modal

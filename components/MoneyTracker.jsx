@@ -18,7 +18,30 @@ const MoneyTracker = () => {
   const navigation = useNavigation();
   const { state, dispatch } = useGlobalContext();
   const [showCalculator, setShowCalculator] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
 
+  const handleEdit = (transaction) => {
+    setEditingTransaction(transaction);
+    setShowCalculator(true);
+  };
+  const handleSaveTransaction = (transactionData) => {
+    if (editingTransaction) {
+      dispatch({
+        type: 'EDIT_TRANSACTION',
+        payload: { 
+          id: editingTransaction.id, 
+          ...transactionData }
+      });
+      setEditingTransaction(null);
+    } else {
+      const newTransaction = {
+        id: Date.now(),
+        ...transactionData
+      };
+      dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
+    }
+    setShowCalculator(false);
+  };
   // Filter transactions for current month
   const currentMonthTransactions = state.transactions.filter(transaction => {
     const transactionDate = parseISO(transaction.date);
@@ -45,15 +68,6 @@ const MoneyTracker = () => {
 
   const handleNextMonth = () => {
     dispatch({ type: 'NEXT_MONTH' });
-  };
-
-  const handleSaveTransaction = (transactionData) => {
-    const newTransaction = {
-      id: Date.now(),
-      ...transactionData
-    };
-    dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
-    setShowCalculator(false);
   };
 
   return (
@@ -108,10 +122,13 @@ const MoneyTracker = () => {
               No record in this month. Tap + to add new expense or income.
             </Text>
           </View>
-        ) : (
-          currentMonthTransactions.map(transaction => (
-            <TransactionRecord key={transaction.id} transaction={transaction} />
-          ))
+        ) :  currentMonthTransactions.map(transaction => (
+          <TransactionRecord 
+            key={transaction.id} 
+            transaction={transaction} 
+            onEdit={handleEdit}  // Make sure to pass the handleEdit function here
+          />
+        )
         )}
       </ScrollView>
 
@@ -125,16 +142,23 @@ const MoneyTracker = () => {
 
       {/* Calculator Modal */}
       <Modal
-        visible={showCalculator}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowCalculator(false)}
-      >
-        <ExpenseCalculator
-          onClose={() => setShowCalculator(false)}
-          onSave={handleSaveTransaction}
-        />
-      </Modal>
+    visible={showCalculator}
+    animationType="slide"
+    presentationStyle="pageSheet"
+    onRequestClose={() => {
+      setShowCalculator(false);
+      setEditingTransaction(null);
+    }}
+  >
+    <ExpenseCalculator
+      onClose={() => {
+        setShowCalculator(false);
+        setEditingTransaction(null);
+      }}
+      onSave={handleSaveTransaction}
+      initialData={editingTransaction}
+    />
+  </Modal>
     </SafeAreaView>
   );
 };

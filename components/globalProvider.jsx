@@ -19,7 +19,7 @@ const globalReducer = (state, action) => {
     
     switch (action.type) {
         case 'ADD_TRANSACTION':
-            const updatedTransactions = [action.payload, ...state.transactions];
+            const updatedTransactions = [...state.transactions, action.payload];
             const expense = updatedTransactions
                 .filter(t => t.type === 'EXPENSE')
                 .reduce((sum, t) => sum + t.amount, 0);
@@ -67,6 +67,51 @@ const globalReducer = (state, action) => {
                 currentMonth: new Date(action.payload).toISOString() 
             };
 
+        case 'DELETE_TRANSACTION':
+            const filteredTransactions = state.transactions.filter(t => t.id !== action.payload);
+            const newExpense = filteredTransactions
+                .filter(t => t.type === 'EXPENSE')
+                .reduce((sum, t) => sum + t.amount, 0);
+            const newIncome = filteredTransactions
+                .filter(t => t.type === 'INCOME')
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            return {
+                ...state,
+                transactions: filteredTransactions,
+                summary: {
+                    expense: newExpense,
+                    income: newIncome,
+                    total: newIncome - newExpense
+                }
+            };
+
+            case 'EDIT_TRANSACTION':
+                const transactionIndex = state.transactions.findIndex(t => t.id === action.payload.id);
+                if (transactionIndex >= 0) {
+                    const transactionsCopy = [...state.transactions];
+                    transactionsCopy[transactionIndex] = action.payload;
+                    
+                    const updatedExpense = transactionsCopy
+                        .filter(t => t.type === 'EXPENSE')
+                        .reduce((sum, t) => sum + t.amount, 0);
+                    const updatedIncome = transactionsCopy
+                        .filter(t => t.type === 'INCOME')
+                        .reduce((sum, t) => sum + t.amount, 0);
+    
+                    newState = {
+                        ...state,
+                        transactions: transactionsCopy,
+                        summary: {
+                            expense: updatedExpense,
+                            income: updatedIncome,
+                            total: updatedIncome - updatedExpense
+                        }
+                    };
+                    return newState;
+                }
+                return state;
+
         default:
             return state;
     }
@@ -107,21 +152,32 @@ export const GlobalProvider = ({ children }) => {
         }
     };
 
-    const onSave = ({ amount, type, category, account, note, date }) => {
-        const transactionData = {
-            id: Date.now(),
-            amount: parseFloat(amount),
-            type,
-            category,
-            account,
-            note,
-            date: date ? new Date(date).toISOString() : new Date().toISOString()
-        };
-    
-        dispatch({
-            type: 'ADD_TRANSACTION',
-            payload: transactionData
-        });
+    const onSave = (transactionData) => {
+        // If the transaction has an id and isUpdate flag, it's an edit
+        if (transactionData.id && transactionData.isUpdate) {
+            dispatch({
+                type: 'EDIT_TRANSACTION',
+                payload: {
+                    ...transactionData,
+                    amount: parseFloat(transactionData.amount),
+                    date: transactionData.date ? new Date(transactionData.date).toISOString() : new Date().toISOString()
+                }
+            });
+        } else {
+            // It's a new transaction
+            dispatch({
+                type: 'ADD_TRANSACTION',
+                payload: {
+                    id: Date.now(),
+                    amount: parseFloat(transactionData.amount),
+                    type: transactionData.type,
+                    category: transactionData.category,
+                    account: transactionData.account,
+                    note: transactionData.note,
+                    date: transactionData.date ? new Date(transactionData.date).toISOString() : new Date().toISOString()
+                }
+            });
+        }
     };
 
     // Helper function to format dates for display

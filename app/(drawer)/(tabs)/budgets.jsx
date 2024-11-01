@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS } from '../../../constants/theme';
@@ -7,8 +7,24 @@ import {
   heightPercentageToDP as hp
 } from 'react-native-responsive-screen';
 import Header from '../../../components/commonheader';
+import { useGlobalContext } from '../../../components/globalProvider';
+import { useTranslation } from 'react-i18next';
 
 const BudgetsScreen = () => {
+
+  const { state, dispatch, changeLanguage } = useGlobalContext();
+  const { t ,i18n} = useTranslation();
+
+  useEffect(() => {
+    
+    if (state.language && i18n.language !== state.language) {
+      i18n.changeLanguage(state.language);
+    }
+    else{
+      i18n.changeLanguage('en');
+    }
+  }, [state.language]);
+
   const [budgets, setBudgets] = useState([
     { id: 'food', title: 'Food & Grocery', icon: 'shopping-basket', limit: 5000, spent: 2500, budgeted: true, category: 'essential' },
     { id: 'bills', title: 'Bills', icon: 'file-invoice-dollar', limit: 3000, spent: 1800, budgeted: true, category: 'essential' },
@@ -73,49 +89,49 @@ const BudgetsScreen = () => {
       <Header />
       <ScrollView style={styles.content}>
         <View style={styles.totalBalance}>
-          <Text style={styles.totalBalanceLabel}>Monthly Budget Overview</Text>
+          <Text style={styles.totalBalanceLabel}>{t('monthlyBudgetOverview')}</Text>
           <Text style={styles.totalBalanceAmount}>₹{totalBudget.toLocaleString()}</Text>
           <View style={styles.overallProgress}>
             {renderProgressBar(totalSpent, totalBudget)}
             <Text style={styles.overallProgressText}>
-              {spentPercentage.toFixed(0)}% of total budget used
+              {spentPercentage.toFixed(0)}{t('ofTotalBudgetUsed')}
             </Text>
           </View>
         </View>
         
         <View style={styles.summary}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>SPENT</Text>
+            <Text style={styles.summaryLabel}>{t('spent')}</Text>
             <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>
               ₹{totalSpent.toLocaleString()}
             </Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>REMAINING</Text>
+            <Text style={styles.summaryLabel}>{t('remaining')}</Text>
             <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>
               ₹{totalRemaining.toLocaleString()}
             </Text>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Essential Expenses</Text>
+        <Text style={styles.sectionTitle}>{t('essentialExpenses')}</Text>
         <View style={styles.budgetsList}>
           {budgets.filter(b => b.category === 'essential').map(renderBudgetCard)}
         </View>
 
-        <Text style={styles.sectionTitle}>Transport</Text>
+        <Text style={styles.sectionTitle}>{t('transport')}</Text>
         <View style={styles.budgetsList}>
           {budgets.filter(b => b.category === 'transport').map(renderBudgetCard)}
         </View>
 
-        <Text style={styles.sectionTitle}>Personal</Text>
+        <Text style={styles.sectionTitle}>{t('personal')}</Text>
         <View style={styles.budgetsList}>
           {budgets.filter(b => b.category === 'personal').map(renderBudgetCard)}
         </View>
 
         <TouchableOpacity style={styles.addBudgetButton}>
           <Ionicons name="add-circle-outline" size={wp('6%')} color={COLORS.text.primary} />
-          <Text style={styles.addBudgetText}>ADD NEW CATEGORY</Text>
+          <Text style={styles.addBudgetText}>{t('addNewCategory')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

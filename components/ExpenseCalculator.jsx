@@ -7,8 +7,11 @@ import {
   SafeAreaView,
   TextInput,
   Modal,
-  FlatList,ActivityIndicator,
-  Alert,Linking,Platform
+  FlatList,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 // import * as Linking from 'expo-linking';
@@ -22,6 +25,7 @@ import { useNavigation } from '@react-navigation/native';
 import { UPI_APPS, PaymentService } from './PaymentService';
 import * as IntentLauncher from 'expo-intent-launcher';
 // import * as Linking from 'expo-linking';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 function openApp(platformSpecificLink) {
   if (Platform.OS === 'android') {
@@ -87,7 +91,9 @@ const MERCHANT_UPI = "blurofficialchannel@okaxis"; // Replace with your UPI ID
 const ExpenseCalculator = ({ onClose, initialData }) => {
   // Track whether we're in edit mode based on initialData presence
   const isEditMode = Boolean(initialData);
-  
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(initialData?.date ? new Date(initialData.date) : new Date());
   const [type, setType] = useState(initialData?.type || 'EXPENSE');
   const [expression, setExpression] = useState('');
   const [note, setNote] = useState(initialData?.note || '');
@@ -112,6 +118,22 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }
   }, [isEditMode]);
 
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', { 
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+   const formatTime = (date) => {
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
+    });
+  };
+
   const checkInstalledApps = async () => {
     setIsLoadingApps(true);
     try {
@@ -130,6 +152,23 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }
   };
 
+  //  date change stuff
+  const onDateChange = (event, selectedDate) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      const currentDate = new Date(selectedDate);
+      setSelectedDate(currentDate);
+    }
+  };
+
+  //  time change stuff
+  const onTimeChange = (event, selectedTime) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedTime) {
+      const currentDate = new Date(selectedTime);
+      setSelectedDate(currentDate);
+    }
+  };
   const handlePayment = (paymentMethod) => {
     setShowPaymentModal(false);
     if (paymentMethod === 'cash') {
@@ -235,20 +274,21 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }
   };
 
+  // Modify your saveTransaction function to include the selected date
   const saveTransaction = () => {
     setShowUPIAppsModal(false);
     setPaymentPending(false);
 
     const transactionData = {
-      id: initialData?.id || Date.now(), // Keep the original ID if editing
+      id: initialData?.id || Date.now(),
       amount: parseFloat(amount),
       type,
       category,
       account,
       note,
-      date,
+      date: selectedDate.toISOString(), // Use the selected date
       lastModified: new Date().toISOString(),
-      isUpdate: isEditMode 
+      isUpdate: isEditMode
     };
 
     onSave(transactionData);
@@ -487,105 +527,195 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     },
     ...additionalStyles,
 
+
+  });
+  const dateTimeStyles = StyleSheet.create({
+    dateTimeContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: wp('4%'),
+      paddingVertical: wp('2%'),
+      backgroundColor: COLORS.lightbackground,
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border,
+    },
+    dateTimeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: wp('2%'),
+      borderRadius: wp('1%'),
+    },
+    dateTimeText: {
+      color: COLORS.text.primary,
+      fontSize: wp('4%'),
+      marginLeft: wp('2%'),
+    }
   });
 
+   // Add this right before the keypad in your return statement
+   const renderDateTimePicker = () => (
+    <View style={dateTimeStyles.dateTimeContainer}>
+      <TouchableOpacity 
+        style={dateTimeStyles.dateTimeButton}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Ionicons name="calendar-outline" size={wp('5%')} color={COLORS.text.primary} />
+        <Text style={[dateTimeStyles.dateTimeText, { marginLeft: wp('2%') }]}>
+          {formatDate(selectedDate)}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={dateTimeStyles.dateTimeButton}
+        onPress={() => setShowTimePicker(true)}
+      >
+        <Ionicons name="time-outline" size={wp('5%')} color={COLORS.text.primary} />
+        <Text style={[dateTimeStyles.dateTimeText, { marginLeft: wp('2%') }]}>
+          {formatTime(selectedDate)}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose}>
-          <Text style={[styles.headerButton, styles.cancelButton]}>CANCEL</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={[styles.headerButton, styles.saveButton]}>SAVE</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.header}>
+      <TouchableOpacity onPress={onClose}>
+        <Text style={[styles.headerButton, styles.cancelButton]}>CANCEL</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handleSave}>
+        <Text style={[styles.headerButton, styles.saveButton]}>SAVE</Text>
+      </TouchableOpacity>
+    </View>
 
-      <View style={styles.typeSelector}>
-        {['INCOME', 'EXPENSE', 'TRANSFER'].map((typeOption) => (
-          <TouchableOpacity 
-            key={typeOption}
-            style={[styles.typeButton, type === typeOption && styles.activeType]}
-            onPress={() => setType(typeOption)}
-          >
-            <Text style={[styles.typeText, type === typeOption && styles.activeTypeText]}>
-              {typeOption}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.inputSection}>
+    <View style={styles.typeSelector}>
+      {['INCOME', 'EXPENSE', 'TRANSFER'].map((typeOption) => (
         <TouchableOpacity 
-          style={styles.inputField}
-          onPress={() => setShowAccountModal(true)}
+          key={typeOption}
+          style={[styles.typeButton, type === typeOption && styles.activeType]}
+          onPress={() => setType(typeOption)}
         >
-          <Text style={{ color: account ? COLORS.text.primary : COLORS.text.secondary }}>
-            {account || 'Account'}
+          <Text style={[styles.typeText, type === typeOption && styles.activeTypeText]}>
+            {typeOption}
           </Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.inputField}
-          onPress={() => setShowCategoryModal(true)}
-        >
-          <Text style={{ color: category ? COLORS.text.primary : COLORS.text.secondary }}>
-            {category || 'Category'}
-          </Text>
+      ))}
+    </View>
+
+    <View style={styles.inputSection}>
+      <TouchableOpacity 
+        style={styles.inputField}
+        onPress={() => setShowAccountModal(true)}
+      >
+        <Text style={{ color: account ? COLORS.text.primary : COLORS.text.secondary }}>
+          {account || 'Account'}
+        </Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.inputField}
+        onPress={() => setShowCategoryModal(true)}
+      >
+        <Text style={{ color: category ? COLORS.text.primary : COLORS.text.secondary }}>
+          {category || 'Category'}
+        </Text>
+      </TouchableOpacity>
+      
+      <View style={styles.inputField}>
+        <TextInput
+          placeholder="Add notes"
+          placeholderTextColor={COLORS.text.secondary}
+          style={styles.noteInput}
+          value={note}
+          onChangeText={setNote}
+        />
+      </View>
+    </View>
+
+    <View style={styles.displaySection}>
+      {expression && <Text style={styles.expression}>{expression}</Text>}
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={styles.amount}>{amount}</Text>
+        <TouchableOpacity onPress={handleBackspace} style={{ marginLeft: wp('4%') }}>
+          <Ionicons name="backspace-outline" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
-        
-        <View style={styles.inputField}>
-          <TextInput
-            placeholder="Add notes"
-            placeholderTextColor={COLORS.text.secondary}
-            style={styles.noteInput}
-            value={note}
-            onChangeText={setNote}
-          />
-        </View>
       </View>
+    </View>
 
-      <View style={styles.displaySection}>
-        {expression && <Text style={styles.expression}>{expression}</Text>}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={styles.amount}>{amount}</Text>
-          <TouchableOpacity onPress={handleBackspace} style={{ marginLeft: wp('4%') }}>
-            <Ionicons name="backspace-outline" size={wp('6%')} color={COLORS.text.primary} />
-          </TouchableOpacity>
-        </View>
-      </View>
+    {/* Add DateTime section here, before the keypad */}
+    <View style={dateTimeStyles.dateTimeContainer}>
+      <TouchableOpacity 
+        style={dateTimeStyles.dateTimeButton}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Ionicons name="calendar-outline" size={wp('5%')} color={COLORS.text.primary} />
+        <Text style={dateTimeStyles.dateTimeText}>
+          {formatDate(selectedDate)}
+        </Text>
+      </TouchableOpacity>
 
-      <View style={styles.keypad}>
-        {[
-          ['7', '8', '9', '+'],
-          ['4', '5', '6', '-'],
-          ['1', '2', '3', '×'],
-          ['0', '.', '=', '/']
-        ].map((row, i) => (
-          <View key={i} style={styles.keypadRow}>
-            {row.map((key) => (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.key,
-                  ['+', '-', '×', '/', '='].includes(key) && styles.operatorKey
-                ]}
-                onPress={() => {
-                  if (key === '=') {
-                    calculate();
-                  } else if (['+', '-', '×', '/'].includes(key)) {
-                    const operator = key === '×' ? '*' : key;
-                    handleOperator(operator);
-                  } else {
-                    handleNumber(key);
-                  }
-                }}
-              >
-                <Text style={styles.keyText}>{key}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ))}
-      </View>
+      <TouchableOpacity 
+        style={dateTimeStyles.dateTimeButton}
+        onPress={() => setShowTimePicker(true)}
+      >
+        <Ionicons name="time-outline" size={wp('5%')} color={COLORS.text.primary} />
+        <Text style={dateTimeStyles.dateTimeText}>
+          {formatTime(selectedDate)}
+        </Text>
+      </TouchableOpacity>
+    </View>
+
+    <View style={styles.keypad}>
+      {[
+        ['7', '8', '9', '+'],
+        ['4', '5', '6', '-'],
+        ['1', '2', '3', '×'],
+        ['0', '.', '=', '/']
+      ].map((row, i) => (
+        <View key={i} style={styles.keypadRow}>
+          {row.map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={[
+                styles.key,
+                ['+', '-', '×', '/', '='].includes(key) && styles.operatorKey
+              ]}
+              onPress={() => {
+                if (key === '=') {
+                  calculate();
+                } else if (['+', '-', '×', '/'].includes(key)) {
+                  const operator = key === '×' ? '*' : key;
+                  handleOperator(operator);
+                } else {
+                  handleNumber(key);
+                }
+              }}
+            >
+              <Text style={styles.keyText}>{key}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ))}
+    </View>
+
+    {/* DateTimePicker modals */}
+    {showDatePicker && (
+      <DateTimePicker
+        value={selectedDate}
+        mode="date"
+        is24Hour={true}
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        onChange={onDateChange}
+      />
+    )}
+    {showTimePicker && (
+      <DateTimePicker
+        value={selectedDate}
+        mode="time"
+        is24Hour={true}
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        onChange={onTimeChange}
+      />
+    )}
 
       {/* Category Selection Modal */}
       <Modal

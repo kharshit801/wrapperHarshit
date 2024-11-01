@@ -56,5 +56,8 @@
     "transport": "परिवहन",
     "personal": "व्यक्तिगत",
     "addNewCategory": "नया श्रेणी जोड़ें",
-    "ofTotalBudgetUsed": "कुल बजट का % उपयोग"
+    "ofTotalBudgetUsed": "कुल बजट का % उपयोग",
+  "selectLanguage": "भाषा चुनें",
+    "close": "बंद करें"
+  
 }

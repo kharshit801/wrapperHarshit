@@ -1,26 +1,20 @@
-import React, { useState,useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS } from '../../../constants/theme';
-import {
-  widthPercentageToDP as wp,
-  heightPercentageToDP as hp
-} from 'react-native-responsive-screen';
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import Header from '../../../components/commonheader';
 import { useGlobalContext } from '../../../components/globalProvider';
 import { useTranslation } from 'react-i18next';
 
 const BudgetsScreen = () => {
-
   const { state, dispatch, changeLanguage } = useGlobalContext();
-  const { t ,i18n} = useTranslation();
+  const { t, i18n } = useTranslation();
 
   useEffect(() => {
-    
     if (state.language && i18n.language !== state.language) {
       i18n.changeLanguage(state.language);
-    }
-    else{
+    } else {
       i18n.changeLanguage('en');
     }
   }, [state.language]);
@@ -37,6 +31,23 @@ const BudgetsScreen = () => {
   const totalSpent = budgets.reduce((total, budget) => total + budget.spent, 0);
   const totalRemaining = totalBudget - totalSpent;
   const spentPercentage = (totalSpent / totalBudget) * 100;
+
+  const [selectedBudget, setSelectedBudget] = useState(null);
+  const [newLimit, setNewLimit] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const openEditModal = (budget) => {
+    setSelectedBudget(budget);
+    setNewLimit(budget.limit.toString());
+    setModalVisible(true);
+  };
+
+  const saveBudgetChange = () => {
+    setBudgets(budgets.map(budget => 
+      budget.id === selectedBudget.id ? { ...budget, limit: parseInt(newLimit, 10) } : budget
+    ));
+    setModalVisible(false);
+  };
 
   const getBudgetStatus = (spent, limit) => {
     const percentage = (spent / limit) * 100;
@@ -66,8 +77,15 @@ const BudgetsScreen = () => {
           <View style={[styles.budgetIconContainer, { borderColor: status.color }]}>
             <FontAwesome5 name={budget.icon} size={wp('6%')} color={COLORS.text.primary} />
           </View>
+          
           <View style={styles.budgetDetails}>
-            <Text style={styles.budgetType}>{budget.title}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={styles.budgetType}>{budget.title}</Text>
+              <TouchableOpacity style={styles.editButton} onPress={() => openEditModal(budget)}>
+                <Ionicons name="pencil-outline" size={wp('5%')} color={COLORS.text.primary} />
+                <Text style={styles.editButtonText}>Edit </Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.budgetProgressInfo}>
               <Text style={styles.budgetProgress}>
                 ₹{budget.spent.toLocaleString()} / ₹{budget.limit.toLocaleString()}
@@ -77,12 +95,13 @@ const BudgetsScreen = () => {
               </Text>
             </View>
             {renderProgressBar(budget.spent, budget.limit)}
-            <Text style={styles.percentageText}>{percentageUsed}% used</Text>
+            <Text style={styles.percentageText}>{percentageUsed}% {t('used')}</Text>
           </View>
         </View>
       </TouchableOpacity>
     );
   };
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -94,7 +113,7 @@ const BudgetsScreen = () => {
           <View style={styles.overallProgress}>
             {renderProgressBar(totalSpent, totalBudget)}
             <Text style={styles.overallProgressText}>
-              {spentPercentage.toFixed(0)}{t('ofTotalBudgetUsed')}
+              {spentPercentage.toFixed(0)}{ " %   "}{t('ofTotalBudgetUsed')}
             </Text>
           </View>
         </View>
@@ -133,10 +152,40 @@ const BudgetsScreen = () => {
           <Ionicons name="add-circle-outline" size={wp('6%')} color={COLORS.text.primary} />
           <Text style={styles.addBudgetText}>{t('addNewCategory')}</Text>
         </TouchableOpacity>
+
+        <Modal visible={modalVisible} transparent={true} animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Edit Budget Limit</Text>
+              {selectedBudget && (
+                <>
+                  <Text style={styles.modalLabel}>{selectedBudget.title}</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    keyboardType="numeric"
+                    value={newLimit}
+                    onChangeText={setNewLimit}
+                    
+                  />
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity style={styles.modalButton} onPress={() => setModalVisible(false)}>
+                      <Text style={styles.modalButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.modalButton} onPress={saveBudgetChange}>
+                      <Text style={styles.modalButtonText}>Save</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -275,7 +324,66 @@ const styles = StyleSheet.create({
     fontSize: wp('4%'),
     fontWeight: '500',
     marginLeft: wp('2%')
-  }
+  },
+  
+ modalContainer: {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+},
+modalContent: {
+  width: wp('80%'),
+  backgroundColor: 'rgba(0.5, 0, 0, 0.9)',
+  padding: wp('5%'),
+  borderRadius: 10,
+},
+modalTitle: {
+  fontSize: wp('5%'),
+  fontWeight: 'bold',
+  marginBottom: hp('2%'),
+  color: COLORS.text.primary,
+},
+modalLabel: {
+  fontSize: wp('4%'),
+  marginBottom: hp('1%'),
+  color: COLORS.text.primary,
+},
+modalInput: {
+  borderWidth: 1,
+  borderColor: COLORS.text.secondary,
+  padding: wp('2%'),
+  borderRadius: 5,
+  marginBottom: hp('2%'),
+  color: COLORS.text.primary,
+},
+modalButtons: {
+  flexDirection: 'row',
+  gap: wp('2%'),
+  justifyContent: 'center',
+},
+modalButton: {
+  padding: wp('2%'),
+  backgroundColor: COLORS.primary,
+  borderRadius: 5,
+},
+modalButtonText: {
+  color: COLORS.text.secondary,
+  fontSize: wp('4%'),
+},
+editButton: {
+  marginTop: hp('1%'),
+  flexDirection: 'row',
+  alignItems: 'center',
+  padding: wp('1%'),
+  paddingBottom: hp('1%'),
+ 
+},
+editButtonText: {
+  marginLeft: wp('1%'),
+  color: COLORS.text.primary,
+},
+
 });
 
 export default BudgetsScreen;

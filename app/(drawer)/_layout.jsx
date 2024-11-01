@@ -61,7 +61,7 @@ useEffect(() => {
             source={require("../../assets/images/logoBlack.png")}
             style={styles.profileImage}
           />
-          <Text style={styles.userName}>{t('teamAuxin')}</Text>
+          <Text style={styles.userName}>{t('TeamAuxin')}</Text>
           <Text style={styles.userEmail}>{t('Email')}</Text>
         </View>
         <View style={styles.drawerItemsContainer}>

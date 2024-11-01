@@ -56,5 +56,7 @@
   "transport": "Transport",
   "personal": "Personal",
   "addNewCategory": "ADD NEW CATEGORY",
-  "ofTotalBudgetUsed": "% of total budget used"
+  "ofTotalBudgetUsed": "% of total budget used",
+   "selectLanguage": "Select Language",
+     "close": "Close"
 }

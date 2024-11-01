@@ -1,6 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const apiKey = 'AIzaSyCPlYnHAObrw189uVA_VRQiTUSeSw46M-k';
+const apiKey = 'API_KEY';
 if (!apiKey) {
     throw new Error('GEMINI_API_KEY environment variable is not set');
 }

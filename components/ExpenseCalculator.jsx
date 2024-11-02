@@ -552,30 +552,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }
   });
 
-   // Add this right before the keypad in your return statement
-   const renderDateTimePicker = () => (
-    <View style={dateTimeStyles.dateTimeContainer}>
-      <TouchableOpacity 
-        style={dateTimeStyles.dateTimeButton}
-        onPress={() => setShowDatePicker(true)}
-      >
-        <Ionicons name="calendar-outline" size={wp('5%')} color={COLORS.text.primary} />
-        <Text style={[dateTimeStyles.dateTimeText, { marginLeft: wp('2%') }]}>
-          {formatDate(selectedDate)}
-        </Text>
-      </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={dateTimeStyles.dateTimeButton}
-        onPress={() => setShowTimePicker(true)}
-      >
-        <Ionicons name="time-outline" size={wp('5%')} color={COLORS.text.primary} />
-        <Text style={[dateTimeStyles.dateTimeText, { marginLeft: wp('2%') }]}>
-          {formatTime(selectedDate)}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
   return (
     <SafeAreaView style={styles.container}>
     <View style={styles.header}>

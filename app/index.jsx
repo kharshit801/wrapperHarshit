@@ -191,7 +191,7 @@ useEffect(() => {
         </Animated.View>
 
         <View style={styles.buttonContainer}>
-          <SlideButton onSlideComplete={handleSlideComplete} buttonText={t('slideToStart')} />
+          <SlideButton onSlideComplete={(handleSlideComplete)} buttonText={t('slideToStart')} />
         </View>
       </View>
     </SafeAreaView>

@@ -11,7 +11,9 @@ import { useGlobalContext } from './globalProvider';
 
 const TransactionRecord = ({ transaction, onEdit }) => {
   const { dispatch } = useGlobalContext();
-
+  // console.log("Dispatch", dispatch)
+  console.log("Transaction", transaction);
+  // console.log("onEdit", onEdit);
   const formatDateTime = (dateString) => {
     try {
       if (!dateString) return 'No date';

@@ -7,6 +7,12 @@ const STORAGE_KEY = 'APP_STATE';
 
 const initialState = {
     transactions: [],
+    categories: [
+        { id: 'salary', title: 'Salary', icon: 'money-check-alt', type: 'INCOME' },
+        { id: 'freelancing', title: 'Freelancing', icon: 'laptop-code', type: 'INCOME' },
+        { id: 'grocery', title: 'Grocery', icon: 'shopping-basket', type: 'EXPENSE' },
+        { id: 'entertainment', title: 'Entertainment', icon: 'film', type: 'EXPENSE' }
+    ],
     summary: {
         expense: 0,
         income: 0,
@@ -18,6 +24,7 @@ const initialState = {
     fontLoaded: false,
     hasLaunched: false
 };
+
 
 const globalReducer = (state, action) => {
     switch (action.type) {
@@ -133,8 +140,46 @@ const globalReducer = (state, action) => {
                         total: updatedIncome - updatedExpense
                     }
                 };
+
             }
             return state;
+
+            case 'ADD_CATEGORY':
+            // Check if category already exists
+            const categoryExists = state.categories.some(
+                cat => cat.title.toLowerCase() === action.payload.title.toLowerCase()
+            );
+            if (categoryExists) {
+                throw new Error('Category already exists');
+            }
+            return {
+                ...state,
+                categories: [...state.categories, action.payload]
+            };
+
+        case 'UPDATE_CATEGORY':
+            return {
+                ...state,
+                categories: state.categories.map(category =>
+                    category.id === action.payload.id ? action.payload : category
+                )
+            };
+
+        case 'DELETE_CATEGORY':
+            // Check if category has transactions
+            const hasTransactions = state.transactions.some(
+                t => t.category.toLowerCase() === action.payload.toLowerCase()
+            );
+            if (hasTransactions) {
+                throw new Error('Category has existing transactions');
+            }
+            return {
+                ...state,
+                categories: state.categories.filter(
+                    category => category.id !== action.payload
+                )
+            };
+    
 
         default:
             return state;

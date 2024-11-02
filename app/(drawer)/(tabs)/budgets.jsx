@@ -9,8 +9,14 @@ import { useTranslation } from 'react-i18next';
 import { useBudgetNotifications, BudgetNotificationListener } from '../../../components/Budgetnotification';
 
 const BudgetsScreen = () => {
-  const { state, dispatch, changeLanguage } = useGlobalContext();
+  const { state, updateBudget, changeLanguage } = useGlobalContext();
   const { t, i18n } = useTranslation();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState(null);
+  const [newLimit, setNewLimit] = useState('');
+
+  const { checkBudgetThresholds, sendBudgetNotification } = useBudgetNotifications();
+  
 
   useEffect(() => {
     if (state.language && i18n.language !== state.language) {
@@ -34,21 +40,21 @@ const BudgetsScreen = () => {
     { id: 'education', title: 'Education', icon: 'graduation-cap', limit: 4000, spent: 3800, budgeted: true, category: 'personal' },
   ]);
 
-  const totalBudget = budgets.reduce((total, budget) => total + budget.limit, 0);
-  const totalSpent = budgets.reduce((total, budget) => total + budget.spent, 0);
-  const totalRemaining = totalBudget - totalSpent;
-  const spentPercentage = (totalSpent / totalBudget) * 100;
+  
 
-const { checkBudgetThresholds, sendBudgetNotification } = useBudgetNotifications();
 
-  const [selectedBudget, setSelectedBudget] = useState(null);
-  const [newLimit, setNewLimit] = useState('');
-  const [modalVisible, setModalVisible] = useState(false);
+
 
   // budget pe nazar rakhenge yaha se
   useEffect(() => {
-    checkBudgetThresholds(budgets);
-  }, [budgets, checkBudgetThresholds]);
+    checkBudgetThresholds(state.budgets);
+  }, [state.budgets, checkBudgetThresholds]);
+
+  const totalBudget = state.budgets.reduce((total, budget) => total + budget.limit, 0);
+  const totalSpent = state.budgets.reduce((total, budget) => total + budget.spent, 0);
+  const totalRemaining = totalBudget - totalSpent;
+  const spentPercentage = (totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0);
+
 
    // Handle incoming notifications
    const handleNotificationReceived = (notification) => {
@@ -62,22 +68,18 @@ const { checkBudgetThresholds, sendBudgetNotification } = useBudgetNotifications
     setNewLimit(budget.limit.toString());
     setModalVisible(true);
   };
-
+ 
   const saveBudgetChange = () => {
-    const updatedBudgets = budgets.map(budget => {
-      if (budget.id === selectedBudget.id) {
-        const updatedBudget = { ...budget, limit: parseInt(newLimit, 10) };
-        // Check if the new limit triggers any notifications
-        sendBudgetNotification(updatedBudget);
-        return updatedBudget;
-      }
-      return budget;
-    });
-    
-    setBudgets(updatedBudgets);
-    setModalVisible(false);
+    if (selectedBudget) {
+      const updatedBudget = {
+        ...selectedBudget,
+        limit: parseInt(newLimit, 10)
+      };
+      updateBudget(updatedBudget);
+      sendBudgetNotification(updatedBudget);
+      setModalVisible(false);
+    }
   };
-
   const getBudgetStatus = (spent, limit) => {
     const percentage = (spent / limit) * 100;
     if (percentage >= 90) return { color: '#ff6b6b', message: 'Critical' };
@@ -135,32 +137,39 @@ const { checkBudgetThresholds, sendBudgetNotification } = useBudgetNotifications
 
   return (
     <SafeAreaView style={styles.container}>
-       <BudgetNotificationListener onNotificationReceived={handleNotificationReceived} />
+      <BudgetNotificationListener onNotificationReceived={handleNotificationReceived} />
       <Header />
       <ScrollView style={styles.content}>
-        <View style={styles.totalBalance}>
-          <Text style={styles.totalBalanceLabel}>{t('monthlyBudgetOverview')}</Text>
-          <Text style={styles.totalBalanceAmount}>₹{totalBudget.toLocaleString()}</Text>
-          <View style={styles.overallProgress}>
+        <View style={styles.overviewContainer}>
+          <View style={styles.overviewHeader}>
+            <View style={styles.overviewTitleContainer}>
+              <Text style={styles.overviewLabel}>{t('Monthly Budget Overview')}</Text>
+              
+            </View>
+            <Text style={styles.totalBalanceAmount}>₹{totalBudget.toLocaleString()}</Text>
+          </View>
+          
+          <View style={styles.overviewProgress}>
             {renderProgressBar(totalSpent, totalBudget)}
-            <Text style={styles.overallProgressText}>
-              {spentPercentage.toFixed(0)}{ " %   "}{t('ofTotalBudgetUsed')}
+            <Text style={styles.overviewProgressText}>
+              {spentPercentage.toFixed(0)}% {t('ofTotalBudgetUsed')}
             </Text>
           </View>
-        </View>
-        
-        <View style={styles.summary}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>{t('spent')}</Text>
-            <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>
-              ₹{totalSpent.toLocaleString()}
-            </Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>{t('remaining')}</Text>
-            <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>
-              ₹{totalRemaining.toLocaleString()}
-            </Text>
+          
+          <View style={styles.summary}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>{t('spent')}</Text>
+              <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>
+                ₹{totalSpent.toLocaleString()}
+              </Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>{t('remaining')}</Text>
+              <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>
+                ₹{totalRemaining.toLocaleString()}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -178,39 +187,86 @@ const { checkBudgetThresholds, sendBudgetNotification } = useBudgetNotifications
         <View style={styles.budgetsList}>
           {budgets.filter(b => b.category === 'personal').map(renderBudgetCard)}
         </View>
-
         <TouchableOpacity style={styles.addBudgetButton}>
-          <Ionicons name="add-circle-outline" size={wp('6%')} color={COLORS.text.primary} />
-          <Text style={styles.addBudgetText}>{t('addNewCategory')}</Text>
+          <View style={styles.addButtonContent}>
+            <View style={styles.addIconContainer}>
+              <Ionicons name="add" size={wp('6%')} color={COLORS.secondary} />
+            </View>
+            <View style={styles.addButtonTextContainer}>
+              <Text style={styles.addBudgetTitle}>{t('New Category')}</Text>
+              <Text style={styles.addBudgetSubtext}>Create a new budget category to track</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={wp('6%')} color={COLORS.text.secondary} />
+          </View>
         </TouchableOpacity>
 
         <Modal visible={modalVisible} transparent={true} animationType="slide">
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Budget Limit</Text>
-              {selectedBudget && (
-                <>
-                  <Text style={styles.modalLabel}>{selectedBudget.title}</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    keyboardType="numeric"
-                    value={newLimit}
-                    onChangeText={setNewLimit}
-                    
-                  />
-                  <View style={styles.modalButtons}>
-                    <TouchableOpacity style={styles.modalButton} onPress={() => setModalVisible(false)}>
-                      <Text style={styles.modalButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.modalButton} onPress={saveBudgetChange}>
-                      <Text style={styles.modalButtonText}>Save</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
+              <TouchableOpacity 
+                style={styles.modalCloseButton} 
+                onPress={() => setModalVisible(false)}
+              >
+                <Ionicons name="close" size={wp('6%')} color={COLORS.text.primary} />
+              </TouchableOpacity>
             </View>
+
+            {selectedBudget && (
+              <>
+                <View style={styles.modalBudgetInfo}>
+                  <View style={[styles.modalIconContainer, { borderColor: getBudgetStatus(selectedBudget.spent, selectedBudget.limit).color }]}>
+                    <FontAwesome5 
+                      name={selectedBudget.icon} 
+                      size={wp('6%')} 
+                      color={COLORS.text.primary} 
+                    />
+                  </View>
+                  <Text style={styles.modalBudgetTitle}>{selectedBudget.title}</Text>
+                </View>
+
+                <View style={styles.modalInputContainer}>
+                  <Text style={styles.modalInputLabel}>Budget Limit</Text>
+                  <View style={styles.modalInputWrapper}>
+                    <Text style={styles.currencySymbol}>₹</Text>
+                    <TextInput
+                      style={styles.modalInput}
+                      keyboardType="numeric"
+                      value={newLimit}
+                      onChangeText={setNewLimit}
+                      placeholderTextColor={COLORS.text.secondary}
+                      selectionColor={COLORS.primary}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.modalCurrentInfo}>
+                  <Text style={styles.modalInfoText}>Current Spent</Text>
+                  <Text style={styles.modalInfoValue}>
+                    ₹{selectedBudget.spent.toLocaleString()}
+                  </Text>
+                </View>
+
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity 
+                    style={[styles.modalButton, styles.modalCancelButton]} 
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.modalButton, styles.modalSaveButton]} 
+                    onPress={saveBudgetChange}
+                  >
+                    <Text style={styles.modalSaveButtonText}>Save Changes</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
-        </Modal>
+        </View>
+      </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -413,6 +469,230 @@ editButton: {
 editButtonText: {
   marginLeft: wp('1%'),
   color: COLORS.text.primary,
+},
+modalContainer: {
+  flex: 1,
+  justifyContent: 'flex-end', // Makes modal slide up from bottom
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+},
+modalContent: {
+  backgroundColor: COLORS.background,
+  borderTopLeftRadius: wp('5%'),
+  borderTopRightRadius: wp('5%'),
+  padding: wp('5%'),
+  paddingBottom: hp('4%'),
+},
+modalHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: hp('3%'),
+},
+modalTitle: {
+  fontSize: wp('5%'),
+  fontWeight: '600',
+  color: COLORS.text.primary,
+},
+modalCloseButton: {
+  padding: wp('2%'),
+},
+modalBudgetInfo: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: hp('3%'),
+},
+modalIconContainer: {
+  width: wp('12%'),
+  height: wp('12%'),
+  borderRadius: wp('6%'),
+  backgroundColor: COLORS.lightbackground,
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginRight: wp('3%'),
+  borderWidth: 2,
+},
+modalBudgetTitle: {
+  fontSize: wp('4.5%'),
+  fontWeight: '500',
+  color: COLORS.text.primary,
+},
+modalInputContainer: {
+  marginBottom: hp('3%'),
+},
+modalInputLabel: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+  marginBottom: hp('1%'),
+},
+modalInputWrapper: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: COLORS.lightbackground,
+  borderRadius: wp('3%'),
+  paddingHorizontal: wp('4%'),
+  height: hp('7%'),
+},
+currencySymbol: {
+  fontSize: wp('5%'),
+  color: COLORS.text.primary,
+  marginRight: wp('2%'),
+},
+modalInput: {
+  flex: 1,
+  fontSize: wp('5%'),
+  color: COLORS.text.primary,
+  padding: 0,
+},
+modalCurrentInfo: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  backgroundColor: COLORS.lightbackground,
+  padding: wp('4%'),
+  borderRadius: wp('3%'),
+  marginBottom: hp('3%'),
+},
+modalInfoText: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+},
+modalInfoValue: {
+  fontSize: wp('4%'),
+  fontWeight: '500',
+  color: COLORS.text.primary,
+},
+modalButtons: {
+  flexDirection: 'row',
+  gap: wp('3%'),
+},
+modalButton: {
+  flex: 1,
+  height: hp('6%'),
+  borderRadius: wp('3%'),
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+modalCancelButton: {
+  backgroundColor: COLORS.lightbackground,
+},
+modalSaveButton: {
+  backgroundColor: COLORS.primary,
+},
+modalCancelButtonText: {
+  color: COLORS.text.primary,
+  fontSize: wp('4%'),
+  fontWeight: '500',
+},
+modalSaveButtonText: {
+  color: '#FFFFFF',
+  fontSize: wp('4%'),
+  fontWeight: '500',
+},overviewContainer: {
+  backgroundColor: COLORS.lightbackground,
+  margin: wp('4%'),
+  borderRadius: wp('4%'),
+  padding: wp('4%'),
+  shadowColor: "#000",
+  shadowOffset: {
+    width: 0,
+    height: 2,
+  },
+  shadowOpacity: 0.1,
+  shadowRadius: 3.84,
+  elevation: 5,
+},
+overviewHeader: {
+  marginBottom: hp('2%'),
+},
+overviewTitleContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: hp('1%'),
+},
+overviewLabel: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+  fontWeight: '500',
+},
+infoButton: {
+  padding: wp('1%'),
+},
+totalBalanceAmount: {
+  fontSize: wp('7%'),
+  fontWeight: '600',
+  color: COLORS.text.primary,
+},
+overviewProgress: {
+  marginBottom: hp('2%'),
+},
+overviewProgressText: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+  marginTop: hp('1%'),
+  textAlign: 'center',
+},
+summary: {
+  flexDirection: 'row',
+  justifyContent: 'space-around',
+  alignItems: 'center',
+  paddingTop: hp('2%'),
+  borderTopWidth: 1,
+  borderTopColor: 'rgba(255, 255, 255, 0.1)',
+},
+summaryItem: {
+  flex: 1,
+  alignItems: 'center',
+},
+divider: {
+  width: 1,
+  height: hp('4%'),
+  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+},
+summaryLabel: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+  marginBottom: hp('0.5%'),
+},
+summaryAmount: {
+  fontSize: wp('4.5%'),
+  fontWeight: '600',
+},
+
+// New Add Budget Button Styles
+addBudgetButton: {
+  margin: wp('4%'),
+  marginTop: 0,
+  backgroundColor: COLORS.lightbackground,
+  borderRadius: wp('4%'),
+  overflow: 'hidden',
+},
+addButtonContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  padding: wp('4%'),
+},
+addIconContainer: {
+  width: wp('12%'),
+  height: wp('12%'),
+  borderRadius: wp('6%'),
+  backgroundColor: 'rgba(66, 153, 225, 0.1)', // Using primary color with opacity
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginRight: wp('3%'),
+},
+addButtonTextContainer: {
+  flex: 1,
+},
+addBudgetTitle: {
+  fontSize: wp('4%'),
+  fontWeight: '600',
+  color: COLORS.text.primary,
+  marginBottom: hp('0.5%'),
+},
+addBudgetSubtext: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
 },
 
 });

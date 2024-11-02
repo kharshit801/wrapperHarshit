@@ -13,6 +13,13 @@ const initialState = {
         { id: 'grocery', title: 'Grocery', icon: 'shopping-basket', type: 'EXPENSE' },
         { id: 'entertainment', title: 'Entertainment', icon: 'film', type: 'EXPENSE' }
     ],
+    budgets: [
+        { id: 'food', title: 'Food & Grocery', icon: 'shopping-basket', limit: 5000, spent: 5000, budgeted: true, category: 'essential' },
+        { id: 'bills', title: 'Bills', icon: 'file-invoice-dollar', limit: 3000, spent: 3000, budgeted: true, category: 'essential' },
+        { id: 'car', title: 'Car', icon: 'car', limit: 2000, spent: 1800, budgeted: true, category: 'transport' },
+        { id: 'clothing', title: 'Clothing', icon: 'tshirt', limit: 1500, spent: 1200, budgeted: true, category: 'personal' },
+        { id: 'education', title: 'Education', icon: 'graduation-cap', limit: 4000, spent: 3800, budgeted: true, category: 'personal' }
+    ],
     summary: {
         expense: 0,
         income: 0,
@@ -179,6 +186,39 @@ const globalReducer = (state, action) => {
                     category => category.id !== action.payload
                 )
             };
+            case 'UPDATE_BUDGET':
+                return {
+                    ...state,
+                    budgets: state.budgets.map(budget =>
+                        budget.id === action.payload.id ? action.payload : budget
+                    )
+                };
+    
+            case 'ADD_BUDGET':
+                return {
+                    ...state,
+                    budgets: [...state.budgets, action.payload]
+                };
+    
+            case 'DELETE_BUDGET':
+                return {
+                    ...state,
+                    budgets: state.budgets.filter(budget => budget.id !== action.payload)
+                };
+    
+            case 'UPDATE_BUDGET_SPENDING':
+                return {
+                    ...state,
+                    budgets: state.budgets.map(budget => {
+                        if (budget.id === action.payload.id) {
+                            return {
+                                ...budget,
+                                spent: action.payload.spent
+                            };
+                        }
+                        return budget;
+                    })
+                };
     
 
         default:
@@ -205,6 +245,38 @@ export const GlobalProvider = ({ children }) => {
             console.log('Language set in i18next:', state.language);
         }
     }, [state.language]);
+
+
+    const updateBudget = (budgetData) => {
+        dispatch({
+            type: 'UPDATE_BUDGET',
+            payload: budgetData
+        });
+    };
+
+    const addBudget = (budgetData) => {
+        dispatch({
+            type: 'ADD_BUDGET',
+            payload: {
+                id: Date.now().toString(),
+                ...budgetData
+            }
+        });
+    };
+
+    const deleteBudget = (budgetId) => {
+        dispatch({
+            type: 'DELETE_BUDGET',
+            payload: budgetId
+        });
+    };
+
+    const updateBudgetSpending = (budgetId, spent) => {
+        dispatch({
+            type: 'UPDATE_BUDGET_SPENDING',
+            payload: { id: budgetId, spent }
+        });
+    };
 
     const loadInitialState = async () => {
         try {
@@ -303,17 +375,20 @@ export const GlobalProvider = ({ children }) => {
             return format(new Date(), 'yyyy-MM-dd');
         }
     };
-
     return (
         <GlobalContext.Provider value={{ 
             state, 
-            dispatch, 
+            dispatch,
             onSave,
             formatDate,
             changeLanguage,
             setTheme,
             setFontLoaded,
-            setHasLaunched
+            setHasLaunched,
+            updateBudget,
+            addBudget,
+            deleteBudget,
+            updateBudgetSpending
         }}>
             {children}
         </GlobalContext.Provider>

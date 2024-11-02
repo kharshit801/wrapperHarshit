@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   ScrollView,
   View,
@@ -8,7 +8,6 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
-  Animated,Modal,Alert,
 } from "react-native";
 import { LineChart, BarChart, PieChart } from "react-native-chart-kit";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,387 +19,310 @@ import {
 } from "react-native-responsive-screen";
 import Header from "../../../components/commonheader";
 import { useGlobalContext } from "../../../components/globalProvider";
-import { getAIRecommendations } from "../../../utils/aiService";
+import ChatGuidePointer from "../../../components/ChatGuidePointet";
 
 const Analysis = () => {
   const { state } = useGlobalContext();
-  const { summary, transactions } = state;
-  const [isFooterExpanded, setIsFooterExpanded] = useState(false);
-  const footerAnimatedValue = useRef(new Animated.Value(hp("6%"))).current;
+  const { summary, transactions, budgets } = state;
   const [isChatOpen, setIsChatOpen] = useState(false);
-  
-  //i am handling here recommendation press
-
-  const handleRecommendationPress = (recommendation) => {
-    setIsChatOpen(true);
-
-  };
-
-
-
-
-  const handleFooterPress = () => {
-    Animated.timing(footerAnimatedValue, {
-      toValue: isFooterExpanded ? hp("6%") : hp("50%"),
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-    setIsFooterExpanded(!isFooterExpanded);
-  };
-
+  const [selectedTimeframe, setSelectedTimeframe] = useState("month"); 
   const screenWidth = Dimensions.get("window").width;
+  const [showSpotlight, setShowSpotlight] = useState(true);
 
-  // Get last 5 months including current month
-  const getLast5Months = () => {
-    const months = [];
-    const today = new Date();
 
-    for (let i = 0; i < 5; i++) {
-      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      months.unshift({
-        key: date.toLocaleString("default", { month: "short" }),
-        year: date.getFullYear(),
-        month: date.getMonth(),
-      });
-    }
-    return months;
-  };
-
-  // Process transaction data for charts
+  // Enhanced data processing
   const processedData = useMemo(() => {
-    // console.log("Processed Data:", processedData);
-    const last5Months = getLast5Months();
+    const today = new Date();
+    const periods = {
+      month: 6,
+      quarter: 4,
+      year: 12
+    };
 
-    // Initialize monthly data with 0 values for all months
-    const monthlyData = {};
-    last5Months.forEach(({ key, year, month }) => {
-      monthlyData[key] = {
+    const getPeriodLabel = (date, timeframe) => {
+      switch (timeframe) {
+        case "month":
+          return date.toLocaleString("default", { month: "short" });
+        case "quarter":
+          return `Q${Math.floor(date.getMonth() / 3) + 1}`;
+        case "year":
+          return date.getFullYear().toString();
+      }
+    };
+
+    const periodCount = periods[selectedTimeframe];
+    const periodData = [];
+    const categoryData = {};
+    let totalSpent = 0;
+    let totalBudget = 0;
+
+    // Initialize period data
+    for (let i = periodCount - 1; i >= 0; i--) {
+      const date = new Date(today);
+      date.setMonth(date.getMonth() - i);
+      periodData.push({
+        label: getPeriodLabel(date, selectedTimeframe),
         expenses: 0,
         income: 0,
-        key,
-        year,
-        month,
-      };
-    });
+        savings: 0
+      });
+    }
 
-    // Group transactions by month
-    transactions.forEach((transaction) => {
-      const date = new Date(transaction.date);
-      const monthKey = date.toLocaleString("default", { month: "short" });
-      const transactionYear = date.getFullYear();
-      const transactionMonth = date.getMonth();
+    // Process transactions
+    transactions.forEach(transaction => {
+      const transactionDate = new Date(transaction.date);
+      const monthDiff = (today.getFullYear() - transactionDate.getFullYear()) * 12 +
+        today.getMonth() - transactionDate.getMonth();
 
-      // Check if transaction belongs to last 5 months
-      const isRelevantMonth = last5Months.some(
-        (m) =>
-          m.key === monthKey &&
-          m.year === transactionYear &&
-          m.month === transactionMonth
-      );
-
-      if (isRelevantMonth) {
+      if (monthDiff < periodCount) {
+        const periodIndex = periodCount - monthDiff - 1;
         if (transaction.type === "EXPENSE") {
-          monthlyData[monthKey].expenses += transaction.amount;
+          periodData[periodIndex].expenses += transaction.amount;
+          totalSpent += transaction.amount;
+          
+          // Category aggregation
+          if (!categoryData[transaction.category]) {
+            categoryData[transaction.category] = {
+              amount: 0,
+              budget: budgets.find(b => b.title.toLowerCase() === transaction.category.toLowerCase())?.limit || 0
+            };
+          }
+          categoryData[transaction.category].amount += transaction.amount;
         } else {
-          monthlyData[monthKey].income += transaction.amount;
+          periodData[periodIndex].income += transaction.amount;
         }
       }
     });
 
-    // Group by category (using only last 5 months of data)
-    const categoryData = {};
-    transactions.forEach((transaction) => {
-      const date = new Date(transaction.date);
-      const monthKey = date.toLocaleString("default", { month: "short" });
-      const transactionYear = date.getFullYear();
-      const transactionMonth = date.getMonth();
+    // Calculate savings rate and budget utilization
+    periodData.forEach(period => {
+      period.savings = ((period.income - period.expenses) / period.income * 100) || 0;
+    });
 
-      const isRelevantMonth = last5Months.some(
-        (m) =>
-          m.key === monthKey &&
-          m.year === transactionYear &&
-          m.month === transactionMonth
-      );
-
-      if (isRelevantMonth && transaction.type === "EXPENSE") {
-        if (!categoryData[transaction.category]) {
-          categoryData[transaction.category] = 0;
-        }
-        categoryData[transaction.category] += transaction.amount;
-      }
+    // Process budgets
+    budgets.forEach(budget => {
+      totalBudget += budget.limit;
     });
 
     return {
-      monthly: monthlyData,
-      categories: categoryData,
-      monthLabels: last5Months.map((m) => m.key),
+      periodData,
+      categoryData,
+      totalSpent,
+      totalBudget,
+      budgetUtilization: (totalSpent / totalBudget) * 100
     };
-  }, [transactions]);
+  }, [transactions, selectedTimeframe, budgets]);
 
-  // Generate recommendations based on transaction data
-  const generateRecommendations = useMemo(() => {
-    console.log("Generated Recommendations:", generateRecommendations);
-    const recommendations = [];
-    const last5Months = getLast5Months();
-
-    // Filter transactions for last 5 months
-    const recentTransactions = transactions.filter((transaction) => {
-      const date = new Date(transaction.date);
-      return last5Months.some(
-        (m) => m.year === date.getFullYear() && m.month === date.getMonth()
-      );
-    });
-
-    // Calculate recent metrics
-    const totalExpenses = recentTransactions
-      .filter((t) => t.type === "EXPENSE")
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const totalIncome = recentTransactions
-      .filter((t) => t.type === "INCOME")
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const savingsRate =
-      totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
-
-    if (savingsRate < 20) {
-      recommendations.push({
-        title: "Increase Savings",
-        description: `Your savings rate over the last 5 months is ${savingsRate.toFixed(
-          1
-        )}%. Consider setting a goal to save at least 20% of your income.`,
-        buttonText: "Set Savings Goal",
-      });
-    }
-
-    // Analyze expense categories
-    const categoryTotals = {};
-    recentTransactions
-      .filter((t) => t.type === "EXPENSE")
-      .forEach((t) => {
-        categoryTotals[t.category] =
-          (categoryTotals[t.category] || 0) + t.amount;
-      });
-
-    const highestCategory = Object.entries(categoryTotals).sort(
-      ([, a], [, b]) => b - a
-    )[0];
-
-    if (highestCategory) {
-      const categoryPercentage = (highestCategory[1] / totalExpenses) * 100;
-      recommendations.push({
-        title: `High ${highestCategory[0]} Spending`,
-        description: `${
-          highestCategory[0]
-        } represents ${categoryPercentage.toFixed(
-          1
-        )}% of your total expenses (₹${highestCategory[1].toFixed(
-          2
-        )}) in the last 5 months. Consider setting a budget for this category.`,
-        buttonText: "Set Budget",
-      });
-    }
-
-    // Analyze month-over-month changes
-    const monthlyTotals = Object.values(processedData.monthly);
-    if (monthlyTotals.length >= 2) {
-      const currentMonth = monthlyTotals[monthlyTotals.length - 1];
-      const previousMonth = monthlyTotals[monthlyTotals.length - 2];
-
-      const expenseChange =
-        ((currentMonth.expenses - previousMonth.expenses) /
-          previousMonth.expenses) *
-        100;
-
-      if (expenseChange > 20) {
-        recommendations.push({
-          title: "Spending Increase Alert",
-          description: `Your expenses have increased by ${expenseChange.toFixed(
-            1
-          )}% compared to last month. Review your recent transactions to identify areas for potential savings.`,
-          buttonText: "Review Transactions",
-        });
+  // Prepare chart data
+  const spendingTrendData = {
+    labels: processedData.periodData.map(d => d.label),
+    datasets: [
+      {
+        data: processedData.periodData.map(d => d.expenses),
+        color: () => COLORS.secondary,
+        strokeWidth: 2
+      },
+      {
+        data: processedData.periodData.map(d => d.income),
+        color: () => COLORS.accent,
+        strokeWidth: 2
       }
-    }
-
-    return recommendations;
-  }, [transactions, processedData]);
-
-  // Prepare data for charts
-  const monthlyChartData = {
-    labels: processedData.monthLabels,
-    datasets: [
-      {
-        data: processedData.monthLabels.map(
-          (month) => processedData.monthly[month].expenses
-        ),
-        strokeWidth: 2,
-        color: () => `#007AFF`,
-      },
     ],
+    legend: ["Expenses", "Income"]
   };
 
-  const categoryChartData = {
-    labels: Object.keys(processedData.categories),
-    datasets: [
-      {
-        data: Object.values(processedData.categories),
-        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-      },
-    ],
-  };
 
-  const maxValue = Math.max(...Object.values(processedData.categories));
-
-  const yAxisMaximum = Math.ceil(maxValue / 1000) * 1000;
-
-  const pieChartData = Object.entries(processedData.categories).map(
-    ([category, amount], index) => ({
-      name: category,
-      amount,
-      color: [COLORS.secondary, COLORS.lightbackground, "#D1D1D8", "#EBEBF0"][
-        index % 4
-      ],
-      legendFontColor: COLORS.text.primary,
-      legendFontSize: wp("3%"),
-    })
+  const categoryChartData = Object.entries(processedData.categoryData).map(([category, data]) => ({
+    name: category.length > 10 ? category.substring(0, 8) + '...' : category, // Shorter truncation
+    amount: data.amount,
+    color: COLORS.chartColors[Math.floor(Math.random() * COLORS.chartColors.length)],
+    legendFontColor: COLORS.text.primary,
+    legendFontSize: wp("3%"),
+    percentageUsed: (data.amount / data.budget) * 100
+  }));
+  const CategoryLegend = ({ data }) => (
+    <View style={styles.legendContainer}>
+      {data.map((item, index) => (
+        <View key={index} style={styles.legendItem}>
+          <View style={[styles.legendColor, { backgroundColor: item.color }]} />
+          <Text style={styles.legendText}>
+            {item.name} ({((item.amount / processedData.totalSpent) * 100).toFixed(1)}%)
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 
-  
+  const TimeframeSelector = () => (
+    <View style={styles.timeframeContainer}>
+      {["month", "quarter", "year"].map((timeframe) => (
+        <TouchableOpacity
+          key={timeframe}
+          style={[
+            styles.timeframeButton,
+            selectedTimeframe === timeframe && styles.timeframeButtonActive
+          ]}
+          onPress={() => setSelectedTimeframe(timeframe)}
+        >
+          <Text style={[
+            styles.timeframeText,
+            selectedTimeframe === timeframe && styles.timeframeTextActive
+          ]}>
+            {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
-
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       <Header />
-
+      
       <ScrollView style={styles.content}>
+        <TimeframeSelector />
+        
+        {/* Summary Cards */}
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Total Spent</Text>
+            <Text style={styles.summaryValue}>₹{processedData.totalSpent.toLocaleString()}</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Budget Utilized</Text>
+            <Text style={styles.summaryValue}>{processedData.budgetUtilization.toFixed(1)}%</Text>
+          </View>
+        </View>
+
+        {/* Spending Trend Chart */}
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>
-            Monthly Expenses (Last 5 Months)
-          </Text>
+          <Text style={styles.chartTitle}>Income vs Expenses Trend</Text>
           <LineChart
-            data={monthlyChartData}
-            width={screenWidth - wp("8%")}
-            height={hp("28%")}
-            yAxisLabel="₹"
-            chartConfig={{
-              backgroundColor: COLORS.primary,
-              backgroundGradientFrom: COLORS.primary,
-              backgroundGradientTo: COLORS.primary,
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            }}
-            bezier
-            style={{
-              marginVertical: hp("1%"),
-              borderRadius: wp("4%"),
-              alignSelf: "center",
-            }}
-          />
+          data={spendingTrendData}
+          width={screenWidth - wp("12%")} // Increased padding
+          height={220} // Fixed height instead of percentage
+          yAxisLabel="₹"
+          chartConfig={{
+            backgroundColor: COLORS.primary,
+            backgroundGradientFrom: COLORS.primary,
+            backgroundGradientTo: COLORS.primary,
+            decimalPlaces: 0,
+            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            style: {
+              borderRadius: 16,
+            },
+            propsForDots: {
+              r: "4", // Reduced dot size
+              strokeWidth: "2",
+              stroke: COLORS.primary
+            },
+            // Added proper padding
+            propsForLabels: {
+              fontSize: wp("3%"),
+            },
+            // Added proper spacing
+            spacing: wp("2%"),
+            // Ensure proper Y-axis formatting
+            formatYLabel: (value) => value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+          }}
+          bezier
+          style={[styles.chart, {
+            marginVertical: hp("1%"),
+            paddingRight: wp("4%"), // Add right padding for y-axis labels
+          }]}
+          // Added props to prevent overflow
+          withInnerLines={true}
+          withOuterLines={true}
+          withVerticalLabels={true}
+          withHorizontalLabels={true}
+          fromZero={true}
+          segments={5}
+        />
         </View>
 
+        {/* Category Analysis */}
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>
-            Category Breakdown (Last 5 Months)
-          </Text>
-          <BarChart
-            data={categoryChartData}
-            width={screenWidth - wp("8%")}
-            height={hp("28%")}
-            yAxisLabel="₹"
-            chartConfig={{
-              backgroundColor: COLORS.primary,
-              backgroundGradientFrom: COLORS.primary,
-              backgroundGradientTo: COLORS.primary,
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              barPercentage: 0.7,
-              propsForVerticalLabels: {
-                fontSize: wp("3%"),
-              },
-              propsForHorizontalLabels: {
-                fontSize: wp("3%"),
-              },
-              // Add these configurations to ensure the chart starts from zero
-              formatYLabel: (value) => Math.round(value).toString(),
-              segments: 5,
-              // Set minimum value to 0 and maximum to calculated ceiling
-              min: 0,
-              max: yAxisMaximum,
-            }}
-            style={{
-              marginVertical: hp("1%"),
-              borderRadius: wp("4%"),
-              alignSelf: "center",
-            }}
-            showValuesOnTopOfBars={true}
-            fromZero={true} // Add this prop to ensure the chart starts from zero
-          />
-        </View>
-
-        <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>
-            Spending Distribution (Last 5 Months)
-          </Text>
+        <Text style={styles.chartTitle}>Spending by Category</Text>
+        <View style={styles.pieChartContainer}>
           <PieChart
-            data={pieChartData}
-            width={screenWidth - wp("8%")}
-            height={hp("28%")}
+            data={categoryChartData}
+            width={screenWidth - wp("40%")} // Reduced width to make space for legend
+            height={200}
             chartConfig={{
               color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
               labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              backgroundColor: "transparent",
             }}
-            accessor={"amount"}
-            backgroundColor={"transparent"}
-            paddingLeft={"15"}
+            accessor="amount"
+            backgroundColor="transparent"
+            paddingLeft={0}
             absolute
-            style={{
-              alignSelf: "center",
-            }}
+            hasLegend={false} // Disable default legend
+            center={[50, 0]} // Adjust center position
           />
+          <CategoryLegend data={categoryChartData} />
+        </View>
+      </View>
+
+        {/* Category Budget Progress */}
+        <View style={styles.categoryProgressContainer}>
+          <Text style={styles.chartTitle}>Budget Progress</Text>
+          {categoryChartData.map((category) => (
+            <View key={category.name} style={styles.progressCard}>
+              <View style={styles.progressHeader}>
+                <Text style={styles.categoryName}>{category.name}</Text>
+                <Text style={styles.percentageUsed}>
+                  {category.percentageUsed.toFixed(1)}% used
+                </Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill,
+                    { 
+                      width: `${Math.min(category.percentageUsed, 100)}%`,
+                      backgroundColor: category.percentageUsed > 100 ? COLORS.danger : COLORS.secondary
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
+          ))}
         </View>
       </ScrollView>
 
-      <Animated.View
-        style={[
-          styles.footer,
-          {
-            height: footerAnimatedValue,
-          },
-        ]}
-      >
-         <TouchableOpacity
-    style={styles.footerContent}
-    onPress={() => setIsChatOpen(true)}
-  >
-    <Text style={styles.footerText}>
-      Chat with AI Financial Advisor
-    </Text>
+      {/* AI Chat Button */}
+      {showSpotlight && (
+        <ChatGuidePointer onDismiss={() => setShowSpotlight(false)} />
+      )}
 
-    <Ionicons
-      name="chatbubble-ellipses-outline"
-      size={wp("4%")}
-      color={COLORS.background}
-    />
-  </TouchableOpacity>
-      </Animated.View>
+      <TouchableOpacity
+        style={[styles.chatButton,showSpotlight && {
+          elevation: 25,
+          shadowColor: "#fff",
+          shadowOffset: {
+            width: 0,
+            height: 0,
+          },
+          shadowOpacity: 0.5,
+          shadowRadius: 10,
+        }
+      ]}
+        onPress={() => setIsChatOpen(true)}
+      >
+        <Ionicons name="chatbubble-ellipses-outline" size={wp("6%")} color={COLORS.background} />
+      </TouchableOpacity>
+     
       {isChatOpen && (
-  <View style={StyleSheet.absoluteFill}>
-    <ChatInterface 
-      summary={summary}
-      transactions={transactions}
-      onClose={() => setIsChatOpen(false)}
-    />
-  </View>
-)}
-      
+        <View style={StyleSheet.absoluteFill}>
+          <ChatInterface 
+            summary={summary}
+            transactions={transactions}
+            onClose={() => setIsChatOpen(false)}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -410,45 +332,63 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: hp("2%"),
-    paddingHorizontal: wp("4%"),
-    backgroundColor: COLORS.background,
-  },
-  headerButton: {
-    padding: wp("2%"),
-  },
-  logo: {
-    width: wp("20%"),
-    height: wp("8%"),
-  },
   content: {
     flex: 1,
+    padding: wp("4%"),
   },
-  chartContainer: {
-    marginVertical: hp("2%"),
-    alignItems: "center",
-  },
-  chartTitle: {
-    fontSize: wp("4.5%"),
-    marginBottom: hp("1%"),
-    color: COLORS.text.primary,
-    fontWeight: "bold",
-  },
-  recommendationsContainer: {
-    marginVertical: hp("2%"),
-    justifyContent: "center",
-  },
-  recommendationCard: {
-    alignSelf: "center",
+  timeframeContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: hp("2%"),
     backgroundColor: COLORS.lightbackground,
     borderRadius: wp("4%"),
+    padding: wp("1%"),
+  },
+  timeframeButton: {
+    flex: 1,
+    paddingVertical: hp("1%"),
+    alignItems: "center",
+    borderRadius: wp("3%"),
+  },
+  timeframeButtonActive: {
+    backgroundColor: COLORS.secondary,
+  },
+  timeframeText: {
+    color: COLORS.text.secondary,
+    fontSize: wp("3.5%"),
+    fontWeight: "500",
+  },
+  timeframeTextActive: {
+    color: COLORS.background,
+    fontWeight: "bold",
+  },
+  summaryContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: hp("2%"),
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderRadius: wp("4%"),
     padding: wp("4%"),
-    marginVertical: hp("1%"),
-    width: "90%",
+    marginHorizontal: wp("1%"),
+  },
+  summaryLabel: {
+    color: COLORS.text.secondary,
+    fontSize: wp("3.5%"),
+    marginBottom: hp("0.5%"),
+  },
+  summaryValue: {
+    color: COLORS.text.primary,
+    fontSize: wp("4.5%"),
+    fontWeight: "bold",
+  },
+  chartContainer: {
+    marginBottom: hp("3%"),
+    backgroundColor: COLORS.primary,
+    borderRadius: wp("4%"),
+    padding: wp("4%"),
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -458,123 +398,100 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  recommendationTitle: {
+
+  pieChartContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: hp("2%"),
+  },
+  
+  chartTitle: {
     fontSize: wp("4%"),
-    fontWeight: "bold",
     color: COLORS.text.primary,
+    fontWeight: "bold",
     marginBottom: hp("1%"),
   },
-  recommendationDescription: {
+  chart: {
+    marginVertical: hp("1%"),
+    borderRadius: wp("4%"),
+    paddingTop: hp("1%"),
+  },
+  categoryProgressContainer: {
+    marginBottom: hp("3%"),
+  },
+  progressCard: {
+    marginBottom: hp("2%"),
+  },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: hp("1%"),
+  },
+  categoryName: {
     fontSize: wp("3.5%"),
+    color: COLORS.text.primary,
+    fontWeight: "500",
+  },
+  percentageUsed: {
+    fontSize: wp("3%"),
     color: COLORS.text.secondary,
-    marginBottom: hp("1%"),
   },
-  recommendationButton: {
-    backgroundColor: COLORS.accent,
+  progressBar: {
+    height: hp("1.5%"),
+    backgroundColor: COLORS.lightbackground,
     borderRadius: wp("2%"),
-    paddingVertical: hp("1%"),
-    paddingHorizontal: wp("4%"),
-    alignSelf: "flex-end",
-  },
-  recommendationButtonText: {
-    fontSize: wp("3.5%"),
-    color: COLORS.text.primary,
-    fontWeight: "bold",
-  },
-  footer: {
-    backgroundColor: COLORS.secondary,
-    borderTopLeftRadius: wp("4%"),
-    borderTopRightRadius: wp("4%"),
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     overflow: "hidden",
   },
-  footerContent: {
-    paddingVertical: hp("2%"),
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: wp("2%"),
+  progressFill: {
+    height: "100%",
+    borderRadius: wp("2%"),
   },
-  footerText: {
-    color: COLORS.background,
-    fontSize: wp("3.5%"),
-    fontWeight: "bold",
-  },
-  recommendationText: {
-    fontSize: wp("4%"),
-    color: "#FFF",
-    padding: wp("4%"),
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: wp('6%'),
-    borderTopRightRadius: wp('6%'),
-    paddingVertical: hp('3%'),
-    paddingHorizontal: wp('4%'),
-    minHeight: hp('35%'),
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: hp('2%'),
-  },
-  modalTitle: {
-    fontSize: wp('5%'),
-    fontWeight: 'bold',
-    color: COLORS.text.primary,
-    flex: 1,
-  },
-  modalCloseButton: {
-    padding: wp('2%'),
-  },
-  modalDescription: {
-    fontSize: wp('4%'),
-    color: COLORS.text.secondary,
-    marginBottom: hp('3%'),
-    lineHeight: hp('2.8%'),
-  },
-  modalActions: {
-    gap: hp('2%'),
-  },
-  modalActionButton: {
+  chatButton: {
+    position: "absolute",
+    bottom: hp("3%"),
+    right: wp("4%"),
     backgroundColor: COLORS.secondary,
-    borderRadius: wp('3%'),
-    paddingVertical: hp('2%'),
-    alignItems: 'center',
-    shadowColor: '#000',
+    width: wp("12%"),
+    height: wp("12%"),
+    borderRadius: wp("6%"),
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
   },
-  modalActionButtonText: {
-    color: COLORS.background,
-    fontSize: wp('4%'),
-    fontWeight: 'bold',
+  legendContainer: {
+    flex: 1,
+    marginLeft: wp("4%"),
+    justifyContent: 'center',
   },
-  modalSecondaryButton: {
-    backgroundColor: COLORS.lightbackground,
-    borderRadius: wp('3%'),
-    paddingVertical: hp('2%'),
+
+  legendItem: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginVertical: hp("0.5%"),
   },
-  modalSecondaryButtonText: {
+
+  legendColor: {
+    width: wp("3%"),
+    height: wp("3%"),
+    borderRadius: wp("1.5%"),
+    marginRight: wp("2%"),
+  },
+
+  legendText: {
     color: COLORS.text.primary,
-    fontSize: wp('4%'),
-    fontWeight: 'bold',
+    fontSize: wp("3%"),
+    flex: 1,
   },
+  
 });
 
 export default Analysis;

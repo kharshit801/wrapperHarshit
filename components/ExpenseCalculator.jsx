@@ -11,10 +11,12 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
-  Platform
+  Platform,
+  
+  TouchableWithoutFeedback,
+  Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// import * as Linking from 'expo-linking';
 import { COLORS } from '../constants/theme';
 import {
   widthPercentageToDP as wp,
@@ -24,7 +26,6 @@ import { useGlobalContext } from '../components/globalProvider';
 import { useNavigation } from '@react-navigation/native';
 import { UPI_APPS, PaymentService } from './PaymentService';
 import * as IntentLauncher from 'expo-intent-launcher';
-// import * as Linking from 'expo-linking';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 function openApp(platformSpecificLink) {
@@ -384,6 +385,9 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   });
 
   const styles = StyleSheet.create({
+    keyboardAvoidingContainer: {
+      flex: 1,
+    },
     container: {
       flex: 1,
       backgroundColor: COLORS.background
@@ -554,7 +558,10 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
 
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+
     <SafeAreaView style={styles.container}>
+  
     <View style={styles.header}>
       <TouchableOpacity onPress={onClose}>
         <Text style={[styles.headerButton, styles.cancelButton]}>CANCEL</Text>
@@ -836,7 +843,10 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
           </View>
         </View>
       )}
+
     </SafeAreaView>
+    
+    </TouchableWithoutFeedback>
 
     );
   }

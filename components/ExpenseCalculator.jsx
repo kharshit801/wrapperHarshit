@@ -687,7 +687,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         value={selectedDate}
         mode="date"
         is24Hour={true}
-        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        display={'default'}
         onChange={onDateChange}
       />
     )}

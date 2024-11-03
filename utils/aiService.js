@@ -1,13 +1,12 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-import { GEMINI_API_KEY, GEMINI_MODEL } from '@env';
 
-const apiKey = GEMINI_API_KEY;
+const apiKey = "AIzaSyCPlYnHAObrw189uVA_VRQiTUSeSw46M-k";
 if (!apiKey) {
     throw new Error('GEMINI_API_KEY environment variable is not set');
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({ model: GEMINI_MODEL || 'gemini-1.5-flash' });
+const model = genAI.getGenerativeModel({ model:'gemini-1.5-flash' });
 
 const formatWithLineBreaks = (text) => {
     return text.replace(/•/g, '•\n');

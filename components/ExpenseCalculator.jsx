@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -47,6 +47,7 @@ function openApp(platformSpecificLink) {
 }
 
 
+
 const CATEGORIES = {
   EXPENSE: [
     'Food & Dining',
@@ -89,6 +90,9 @@ const PAYMENT_METHODS = [
 
 const MERCHANT_UPI = "blurofficialchannel@okaxis"; // Replace with your UPI ID
 
+const MAX_DIGITS = 9;
+const DECIMAL_PLACES = 2;
+
 const ExpenseCalculator = ({ onClose, initialData }) => {
   // Track whether we're in edit mode based on initialData presence
   const isEditMode = Boolean(initialData);
@@ -108,9 +112,15 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   const [paymentPending, setPaymentPending] = useState(false);
   const [isLoadingApps, setIsLoadingApps] = useState(false);
   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
-  const [date, setDate] = useState(initialData ? new Date(initialData.date) : new Date());
+  const [isProcessing, setIsProcessing] = useState(false);
   const { onSave } = useGlobalContext();
-  const navigation = useNavigation();
+
+  const validateAmount = useCallback((value) => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return false;
+    const wholeNumberPart = Math.floor(Math.abs(numValue)).toString();
+    return wholeNumberPart.length <= MAX_DIGITS;
+  }, []);
 
   useEffect(() => {
     // Only check for UPI apps if we're not in edit mode
@@ -155,19 +165,26 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
 
   //  date change stuff
   const onDateChange = (event, selectedDate) => {
+    const currentDate = selectedDate || selectedDate;
     setShowDatePicker(Platform.OS === 'ios');
-    if (selectedDate) {
-      const currentDate = new Date(selectedDate);
-      setSelectedDate(currentDate);
+    if (currentDate) {
+      const newDate = new Date(currentDate);
+      // Preserve the time from the existing selectedDate
+      newDate.setHours(selectedDate.getHours());
+      newDate.setMinutes(selectedDate.getMinutes());
+      setSelectedDate(newDate);
     }
   };
 
   //  time change stuff
   const onTimeChange = (event, selectedTime) => {
+    const currentTime = selectedTime || selectedTime;
     setShowTimePicker(Platform.OS === 'ios');
-    if (selectedTime) {
-      const currentDate = new Date(selectedTime);
-      setSelectedDate(currentDate);
+    if (currentTime) {
+      const newDate = new Date(selectedDate);
+      newDate.setHours(currentTime.getHours());
+      newDate.setMinutes(currentTime.getMinutes());
+      setSelectedDate(newDate);
     }
   };
   const handlePayment = (paymentMethod) => {
@@ -234,67 +251,149 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }
   };
 
-  const handleNumber = (num) => {
-    if (amount === '0') {
-      setAmount(num);
-    } else {
-      setAmount(amount + num);
-    }
-  };
+ const handleNumber = useCallback((num) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    
+    setTimeout(() => {
+      setAmount(prevAmount => {
+        const newAmount = prevAmount === '0' ? num : prevAmount + num;
+        
+        // Handle decimal places
+        if (newAmount.includes('.')) {
+          const [whole, decimal] = newAmount.split('.');
+          if (decimal && decimal.length > DECIMAL_PLACES) {
+            return prevAmount;
+          }
+        }
+        
+        // Validate digit count
+        const wholeNumber = newAmount.split('.')[0];
+        if (wholeNumber.length > MAX_DIGITS) {
+          Alert.alert('Invalid Amount', 'Maximum 9 digits allowed');
+          return prevAmount;
+        }
+        
+        return newAmount;
+      });
+      setIsProcessing(false);
+    }, 100); // Debounce time for multi-touch handling
+  }, [isProcessing]);
 
-  const handleOperator = (operator) => {
-    if (amount !== '0') {
-      setExpression(amount + operator);
-      setAmount('0');
-    }
-  };
-
-  const calculate = () => {
-    if (expression) {
-      try {
-        const result = eval(expression + amount);
-        setAmount(result.toString());
-        setExpression('');
-      } catch (error) {
+  const handleOperator = useCallback((operator) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    
+    setTimeout(() => {
+      if (amount !== '0') {
+        setExpression(amount + operator);
         setAmount('0');
-        setExpression('');
       }
-    }
-  };
+      setIsProcessing(false);
+    }, 100);
+  }, [amount, isProcessing]);
 
-  const handleClear = () => {
+
+  const calculate = useCallback(() => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    
+    setTimeout(() => {
+      if (expression) {
+        try {
+          // Handle division by zero
+          if (expression.endsWith('/') && parseFloat(amount) === 0) {
+            Alert.alert('Invalid Operation', 'Cannot divide by zero');
+            handleClear();
+            setIsProcessing(false);
+            return;
+          }
+
+          const result = eval(expression + amount);
+          
+          // Handle invalid results
+          if (!isFinite(result)) {
+            Alert.alert('Invalid Amount', 'Result is invalid');
+            handleClear();
+            setIsProcessing(false);
+            return;
+          }
+
+          // Format result to fixed decimal places
+          const formattedResult = parseFloat(result.toFixed(DECIMAL_PLACES)).toString();
+          
+          // Validate result length
+          if (!validateAmount(formattedResult)) {
+            Alert.alert('Invalid Amount', 'Result exceeds maximum digits allowed');
+            handleClear();
+          } else {
+            setAmount(formattedResult);
+            setExpression('');
+          }
+        } catch (error) {
+          Alert.alert('Error', 'Invalid calculation');
+          handleClear();
+        }
+      }
+      setIsProcessing(false);
+    }, 100);
+  }, [expression, amount, isProcessing, validateAmount]);
+
+// Enhanced clear function
+  const handleClear = useCallback(() => {
     setAmount('0');
     setExpression('');
-  };
+  }, []);
 
-  const handleBackspace = () => {
-    if (amount.length > 1) {
-      setAmount(amount.slice(0, -1));
-    } else {
-      setAmount('0');
-    }
-  };
+// Enhanced backspace handling
+const handleBackspace = useCallback(() => {
+  if (isProcessing) return;
+  setIsProcessing(true);
+  
+  setTimeout(() => {
+    setAmount(prevAmount => {
+      if (prevAmount.length > 1) {
+        return prevAmount.slice(0, -1);
+      }
+      return '0';
+    });
+    setIsProcessing(false);
+  }, 100);
+}, [isProcessing]);
 
-  // Modify your saveTransaction function to include the selected date
-  const saveTransaction = () => {
+  // included second date and time picker
+  const saveTransaction = useCallback(() => {
     setShowUPIAppsModal(false);
     setPaymentPending(false);
 
+    const numAmount = parseFloat(amount);
+    
+    if (isNaN(numAmount) || numAmount === 0) {
+      Alert.alert('Invalid Amount', 'Amount cannot be zero');
+      return;
+    }
+
+    if (!validateAmount(amount)) {
+      Alert.alert('Invalid Amount', 'Amount is invalid');
+      return;
+    }
+
     const transactionData = {
       id: initialData?.id || Date.now(),
-      amount: parseFloat(amount),
+      amount: numAmount,
       type,
       category,
       account,
       note,
-      date: selectedDate.toISOString(), // Use the selected date
+      date: selectedDate.toISOString(),
       lastModified: new Date().toISOString(),
       isUpdate: isEditMode
     };
 
     onSave(transactionData);
     onClose();
-  };
+  }, [amount, type, category, account, note, selectedDate, initialData, isEditMode, onSave, onClose, validateAmount]);
+
   const handleSave = () => {
     if (!account){
       Alert.alert("Error", "Please select an account");
@@ -316,6 +415,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }
   };
 
+  
   const renderUPIAppsModal = () => (
     <Modal
       visible={showUPIAppsModal}
@@ -538,25 +638,107 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       flexDirection: 'row',
       justifyContent: 'space-between',
       paddingHorizontal: wp('4%'),
-      paddingVertical: wp('2%'),
-      backgroundColor: COLORS.lightbackground,
+      paddingVertical: wp('3%'),
+      backgroundColor: COLORS.background,
+      borderTopWidth: 1,
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border,
+      borderColor: COLORS.lightbackground,
+      marginBottom: wp('2%'),
     },
     dateTimeButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: wp('2%'),
-      borderRadius: wp('1%'),
+      padding: wp('3%'),
+      borderRadius: wp('2%'),
+      backgroundColor: COLORS.lightbackground,
+      minWidth: wp('40%'), // Set minimum width for consistency
+      justifyContent: 'center',
     },
     dateTimeText: {
       color: COLORS.text.primary,
       fontSize: wp('4%'),
       marginLeft: wp('2%'),
+      fontWeight: '500',
+    },
+    iconStyle: {
+      marginRight: wp('2%'),
     }
   });
+ // Updated DateTime section render
+ const renderDateTime = () => (
+  <View style={dateTimeStyles.dateTimeContainer}>
+    <TouchableOpacity 
+      style={dateTimeStyles.dateTimeButton}
+      onPress={() => setShowDatePicker(true)}
+    >
+      <Ionicons 
+        name="calendar-outline" 
+        size={wp('5%')} 
+        color={COLORS.text.primary}
+        style={dateTimeStyles.iconStyle}
+      />
+      <Text style={dateTimeStyles.dateTimeText}>
+        {formatDate(selectedDate)}
+      </Text>
+    </TouchableOpacity>
 
+    <TouchableOpacity 
+      style={dateTimeStyles.dateTimeButton}
+      onPress={() => setShowTimePicker(true)}
+    >
+      <Ionicons 
+        name="time-outline" 
+        size={wp('5%')} 
+        color={COLORS.text.primary}
+        style={dateTimeStyles.iconStyle}
+      />
+      <Text style={dateTimeStyles.dateTimeText}>
+        {formatTime(selectedDate)}
+      </Text>
+    </TouchableOpacity>
+  </View>
+ );
 
+  const renderKeypad = () => (
+    <View style={styles.keypad}>
+      {[
+        ['7', '8', '9', '+'],
+        ['4', '5', '6', '-'],
+        ['1', '2', '3', '×'],
+        ['0', '.', '=', '/']
+      ].map((row, i) => (
+        <View key={i} style={styles.keypadRow}>
+          {row.map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={[
+                styles.key,
+                ['+', '-', '×', '/', '='].includes(key) && styles.operatorKey
+              ]}
+              onPress={() => {
+                if (isProcessing) return;
+                
+                if (key === '=') {
+                  calculate();
+                } else if (['+', '-', '×', '/'].includes(key)) {
+                  const operator = key === '×' ? '*' : key;
+                  handleOperator(operator);
+                } else if (key === '.') {
+                  if (!amount.includes('.')) {
+                    handleNumber(key);
+                  }
+                } else {
+                  handleNumber(key);
+                }
+              }}
+            >
+              <Text style={styles.keyText}>{key}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
 
@@ -614,7 +796,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         />
       </View>
     </View>
-
+    {renderDateTime()}
     <View style={styles.displaySection}>
       {expression && <Text style={styles.expression}>{expression}</Text>}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -624,83 +806,79 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         </TouchableOpacity>
       </View>
     </View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={styles.container}>
+        {renderKeypad()}
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
+    
+    {/* Date Time Picker Modals */}
+    {showDatePicker && Platform.OS === 'android' && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            is24Hour={true}
+            display="default"
+            onChange={onDateChange}
+          />
+        )}
 
-    {/* Add DateTime section here, before the keypad */}
-    <View style={dateTimeStyles.dateTimeContainer}>
-      <TouchableOpacity 
-        style={dateTimeStyles.dateTimeButton}
-        onPress={() => setShowDatePicker(true)}
-      >
-        <Ionicons name="calendar-outline" size={wp('5%')} color={COLORS.text.primary} />
-        <Text style={dateTimeStyles.dateTimeText}>
-          {formatDate(selectedDate)}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={dateTimeStyles.dateTimeButton}
-        onPress={() => setShowTimePicker(true)}
-      >
-        <Ionicons name="time-outline" size={wp('5%')} color={COLORS.text.primary} />
-        <Text style={dateTimeStyles.dateTimeText}>
-          {formatTime(selectedDate)}
-        </Text>
-      </TouchableOpacity>
-    </View>
-
-    <View style={styles.keypad}>
-      {[
-        ['7', '8', '9', '+'],
-        ['4', '5', '6', '-'],
-        ['1', '2', '3', '×'],
-        ['0', '.', '=', '/']
-      ].map((row, i) => (
-        <View key={i} style={styles.keypadRow}>
-          {row.map((key) => (
-            <TouchableOpacity
-              key={key}
-              style={[
-                styles.key,
-                ['+', '-', '×', '/', '='].includes(key) && styles.operatorKey
-              ]}
-              onPress={() => {
-                if (key === '=') {
-                  calculate();
-                } else if (['+', '-', '×', '/'].includes(key)) {
-                  const operator = key === '×' ? '*' : key;
-                  handleOperator(operator);
-                } else {
-                  handleNumber(key);
-                }
-              }}
-            >
-              <Text style={styles.keyText}>{key}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      ))}
-    </View>
-
-    {/* DateTimePicker modals */}
-    {showDatePicker && (
-      <DateTimePicker
-        value={selectedDate}
-        mode="date"
-        is24Hour={true}
-        display={'default'}
-        onChange={onDateChange}
-      />
-    )}
-    {showTimePicker && (
-      <DateTimePicker
-        value={selectedDate}
-        mode="time"
-        is24Hour={true}
-        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        onChange={onTimeChange}
-      />
-    )}
-
+        {showTimePicker && Platform.OS === 'android' && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="time"
+            is24Hour={false}
+            display="default"
+            onChange={onTimeChange}
+          />
+        )}
+        
+        {Platform.OS === 'ios' && (showDatePicker || showTimePicker) && (
+          <Modal
+            transparent={true}
+            animationType="slide"
+            visible={showDatePicker || showTimePicker}
+          >
+            <View style={{
+              flex: 1,
+              justifyContent: 'flex-end',
+              backgroundColor: 'rgba(0,0,0,0.5)',
+            }}>
+              <View style={{
+                backgroundColor: COLORS.background,
+                padding: wp('4%'),
+                borderTopLeftRadius: wp('4%'),
+                borderTopRightRadius: wp('4%'),
+              }}>
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  marginBottom: wp('4%'),
+                }}>
+                  <TouchableOpacity onPress={() => {
+                    setShowDatePicker(false);
+                    setShowTimePicker(false);
+                  }}>
+                    <Text style={{ color: COLORS.primary, fontSize: wp('4%') }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => {
+                    setShowDatePicker(false);
+                    setShowTimePicker(false);
+                  }}>
+                    <Text style={{ color: COLORS.primary, fontSize: wp('4%') }}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={selectedDate}
+                  mode={showDatePicker ? "date" : "time"}
+                  display="spinner"
+                  onChange={showDatePicker ? onDateChange : onTimeChange}
+                  style={{ height: hp('25%') }}
+                />
+              </View>
+            </View>
+          </Modal>
+        )}
       {/* Category Selection Modal */}
       <Modal
         visible={showCategoryModal}

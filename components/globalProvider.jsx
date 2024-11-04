@@ -1,40 +1,63 @@
 import React, { createContext, useReducer, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { format, parseISO, addMonths, subMonths } from 'date-fns';
+import { databaseService } from '../utils/database/databaseService';
 import i18next from 'i18next';
+import { format, parseISO, addMonths, subMonths } from 'date-fns';
 
-const STORAGE_KEY = 'APP_STATE';
+const GlobalContext = createContext();
 
 const initialState = {
     transactions: [],
-    categories: [
-        { id: 'salary', title: 'Salary', icon: 'money-check-alt', type: 'INCOME' },
-        { id: 'freelancing', title: 'Freelancing', icon: 'laptop-code', type: 'INCOME' },
-        { id: 'grocery', title: 'Grocery', icon: 'shopping-basket', type: 'EXPENSE' },
-        { id: 'entertainment', title: 'Entertainment', icon: 'film', type: 'EXPENSE' }
-    ],
-    budgets: [
-        { id: 'food', title: 'Food & Grocery', icon: 'shopping-basket', limit: 5000, spent: 5000, budgeted: true, category: 'essential' },
-        { id: 'bills', title: 'Bills', icon: 'file-invoice-dollar', limit: 3000, spent: 3000, budgeted: true, category: 'essential' },
-        { id: 'car', title: 'Car', icon: 'car', limit: 2000, spent: 1800, budgeted: true, category: 'transport' },
-        { id: 'clothing', title: 'Clothing', icon: 'tshirt', limit: 1500, spent: 1200, budgeted: true, category: 'personal' },
-        { id: 'education', title: 'Education', icon: 'graduation-cap', limit: 4000, spent: 3800, budgeted: true, category: 'personal' }
-    ],
+    categories: [],
+    budgets: [],
     summary: {
         expense: 0,
         income: 0,
         total: 0
     },
     currentMonth: new Date().toISOString(),
-    language: null, // Initially null to signify it should be loaded from AsyncStorage
+    language: null,
     theme: 'light',
     fontLoaded: false,
-    hasLaunched: false
+    hasLaunched: false,
+    isLoading: true,
+    error: null
 };
-
 
 const globalReducer = (state, action) => {
     switch (action.type) {
+        case 'SET_LOADING':
+            return {
+                ...state,
+                isLoading: action.payload,
+                error: null
+            };
+
+        case 'SET_ERROR':
+            return {
+                ...state,
+                error: action.payload,
+                isLoading: false
+            };
+
+        case 'LOAD_INITIAL_DATA':
+            return {
+                ...state,
+                categories: action.payload.categories,
+                budgets: action.payload.budgets,
+                language: action.payload.language,
+                theme: action.payload.theme,
+                hasLaunched: action.payload.hasLaunched,
+                isLoading: false
+            };
+
+        case 'SET_TRANSACTIONS':
+            return {
+                ...state,
+                transactions: action.payload.transactions,
+                summary: action.payload.summary,
+                isLoading: false
+            };
+
         case 'SET_FONT_LOADED':
             return {
                 ...state,
@@ -53,23 +76,10 @@ const globalReducer = (state, action) => {
                 theme: action.payload
             };
 
-        case 'ADD_TRANSACTION':
-            const updatedTransactions = [...state.transactions, action.payload];
-            const expense = updatedTransactions
-                .filter(t => t.type === 'EXPENSE')
-                .reduce((sum, t) => sum + t.amount, 0);
-            const income = updatedTransactions
-                .filter(t => t.type === 'INCOME')
-                .reduce((sum, t) => sum + t.amount, 0);
-
+        case 'SET_LANGUAGE':
             return {
                 ...state,
-                transactions: updatedTransactions,
-                summary: {
-                    expense,
-                    income,
-                    total: income - expense
-                }
+                language: action.payload
             };
 
         case 'NEXT_MONTH':
@@ -83,16 +93,6 @@ const globalReducer = (state, action) => {
                 ...state,
                 currentMonth: subMonths(new Date(state.currentMonth), 1).toISOString()
             };
-    
-        case 'CLEAR_TRANSACTIONS':
-            return { 
-                ...state, 
-                transactions: [], 
-                summary: initialState.summary 
-            };
-        
-        case 'LOAD_STATE':
-            return action.payload || initialState;
 
         case 'SET_MONTH':
             return { 
@@ -100,273 +100,200 @@ const globalReducer = (state, action) => {
                 currentMonth: new Date(action.payload).toISOString() 
             };
 
-        case 'SET_LANGUAGE':
-            return {
-                ...state,
-                language: action.payload
-            };
-
-        case 'DELETE_TRANSACTION':
-            const filteredTransactions = state.transactions.filter(t => t.id !== action.payload);
-            const newExpense = filteredTransactions
-                .filter(t => t.type === 'EXPENSE')
-                .reduce((sum, t) => sum + t.amount, 0);
-            const newIncome = filteredTransactions
-                .filter(t => t.type === 'INCOME')
-                .reduce((sum, t) => sum + t.amount, 0);
-            
-            return {
-                ...state,
-                transactions: filteredTransactions,
-                summary: {
-                    expense: newExpense,
-                    income: newIncome,
-                    total: newIncome - newExpense
-                }
-            };
-
-        case 'EDIT_TRANSACTION':
-            const transactionIndex = state.transactions.findIndex(t => t.id === action.payload.id);
-            if (transactionIndex >= 0) {
-                const transactionsCopy = [...state.transactions];
-                transactionsCopy[transactionIndex] = action.payload;
-                
-                const updatedExpense = transactionsCopy
-                    .filter(t => t.type === 'EXPENSE')
-                    .reduce((sum, t) => sum + t.amount, 0);
-                const updatedIncome = transactionsCopy
-                    .filter(t => t.type === 'INCOME')
-                    .reduce((sum, t) => sum + t.amount, 0);
-
-                return {
-                    ...state,
-                    transactions: transactionsCopy,
-                    summary: {
-                        expense: updatedExpense,
-                        income: updatedIncome,
-                        total: updatedIncome - updatedExpense
-                    }
-                };
-
-            }
-            return state;
-
-            case 'ADD_CATEGORY':
-            // Check if category already exists
-            const categoryExists = state.categories.some(
-                cat => cat.title.toLowerCase() === action.payload.title.toLowerCase()
-            );
-            if (categoryExists) {
-                throw new Error('Category already exists');
-            }
-            return {
-                ...state,
-                categories: [...state.categories, action.payload]
-            };
-
-        case 'UPDATE_CATEGORY':
-            return {
-                ...state,
-                categories: state.categories.map(category =>
-                    category.id === action.payload.id ? action.payload : category
-                )
-            };
-
-        case 'DELETE_CATEGORY':
-            // Check if category has transactions
-            const hasTransactions = state.transactions.some(
-                t => t.category.toLowerCase() === action.payload.toLowerCase()
-            );
-            if (hasTransactions) {
-                throw new Error('Category has existing transactions');
-            }
-            return {
-                ...state,
-                categories: state.categories.filter(
-                    category => category.id !== action.payload
-                )
-            };
-            case 'UPDATE_BUDGET':
-                return {
-                    ...state,
-                    budgets: state.budgets.map(budget =>
-                        budget.id === action.payload.id ? action.payload : budget
-                    )
-                };
-    
-            case 'ADD_BUDGET':
-                return {
-                    ...state,
-                    budgets: [...state.budgets, action.payload]
-                };
-    
-            case 'DELETE_BUDGET':
-                return {
-                    ...state,
-                    budgets: state.budgets.filter(budget => budget.id !== action.payload)
-                };
-    
-            case 'UPDATE_BUDGET_SPENDING':
-                return {
-                    ...state,
-                    budgets: state.budgets.map(budget => {
-                        if (budget.id === action.payload.id) {
-                            return {
-                                ...budget,
-                                spent: action.payload.spent
-                            };
-                        }
-                        return budget;
-                    })
-                };
-    
-
         default:
             return state;
     }
 };
 
-const GlobalContext = createContext();
-
 export const GlobalProvider = ({ children }) => {
     const [state, dispatch] = useReducer(globalReducer, initialState);
 
+    // initialize app data
     useEffect(() => {
-        loadInitialState(); // Load entire state, including language, on mount
+        initializeApp();
     }, []);
 
-    useEffect(() => {
-        saveState(state); // Save state changes to AsyncStorage
-    }, [state]);
-
+    // handle language 
     useEffect(() => {
         if (state.language) {
             i18next.changeLanguage(state.language);
-            console.log('Language set in i18next:', state.language);
+            databaseService.setSetting('language', state.language)
+                .catch(error => console.error('Error saving language:', error));
         }
     }, [state.language]);
 
-
-    const updateBudget = (budgetData) => {
-        dispatch({
-            type: 'UPDATE_BUDGET',
-            payload: budgetData
-        });
-    };
-
-    const addBudget = (budgetData) => {
-        dispatch({
-            type: 'ADD_BUDGET',
-            payload: {
-                id: Date.now().toString(),
-                ...budgetData
-            }
-        });
-    };
-
-    const deleteBudget = (budgetId) => {
-        dispatch({
-            type: 'DELETE_BUDGET',
-            payload: budgetId
-        });
-    };
-
-    const updateBudgetSpending = (budgetId, spent) => {
-        dispatch({
-            type: 'UPDATE_BUDGET_SPENDING',
-            payload: { id: budgetId, spent }
-        });
-    };
-
-    const loadInitialState = async () => {
-        try {
-            const savedState = await AsyncStorage.getItem(STORAGE_KEY);
-            if (savedState) {
-                dispatch({ type: 'LOAD_STATE', payload: JSON.parse(savedState) });
-            }
-
-            // Load language specifically from AsyncStorage
-            const savedLanguage = await AsyncStorage.getItem('APP_LANGUAGE');
-            if (savedLanguage) {
-                dispatch({ type: 'SET_LANGUAGE', payload: savedLanguage });
-                console.log('Loaded saved language:', savedLanguage);
-            } else {
-                // Default language if none saved
-                dispatch({ type: 'SET_LANGUAGE', payload: 'en' });
-            }
-        } catch (error) {
-            console.error('Error loading initial state:', error);
+    // Handle month changes
+    useEffect(() => {
+        if (!state.isLoading) {
+            loadTransactionsForMonth(state.currentMonth);
         }
-    };
+    }, [state.currentMonth]);
 
-    const saveState = async (stateToSave) => {
+    const initializeApp = async () => {
+        dispatch({ type: 'SET_LOADING', payload: true });
         try {
-            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
-        } catch (error) {
-            console.error('Error saving state:', error);
-        }
-    };
+            await databaseService.init();
+            
+            // Load initial data
+            const [
+                categories,
+                budgets,
+                language,
+                theme,
+                hasLaunched
+            ] = await Promise.all([
+                databaseService.getCategories(),
+                databaseService.getBudgets(),
+                databaseService.getSetting('language'),
+                databaseService.getSetting('theme'),
+                databaseService.getSetting('has_launched')
+            ]);
 
-    const onSave = (transactionData) => {
-        if (transactionData.id && transactionData.isUpdate) {
-            dispatch({
-                type: 'EDIT_TRANSACTION',
+            dispatch({ 
+                type: 'LOAD_INITIAL_DATA', 
                 payload: {
+                    categories,
+                    budgets,
+                    language: language || 'en',
+                    theme: theme || 'light',
+                    hasLaunched: hasLaunched === 'true'
+                }
+            });
+
+            await loadTransactionsForMonth(state.currentMonth);
+        } catch (error) {
+            dispatch({ type: 'SET_ERROR', payload: error.message });
+            console.error('Error initializing app:', error);
+        }
+    };
+
+    const loadTransactionsForMonth = async (month) => {
+        try {
+            const [transactions, summary] = await Promise.all([
+                databaseService.getTransactions(month),
+                databaseService.getMonthSummary(month)
+            ]);
+            
+            dispatch({ 
+                type: 'SET_TRANSACTIONS', 
+                payload: { transactions, summary } 
+            });
+        } catch (error) {
+            console.error('Error loading transactions:', error);
+            dispatch({ type: 'SET_ERROR', payload: error.message });
+        }
+    };
+
+    // Transaction management
+    const onSave = async (transactionData) => {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        try {
+            if (transactionData.id && transactionData.isUpdate) {
+                await databaseService.updateTransaction({
                     ...transactionData,
                     amount: parseFloat(transactionData.amount),
                     date: transactionData.date ? new Date(transactionData.date).toISOString() : new Date().toISOString()
-                }
-            });
-        } else {
-            dispatch({
-                type: 'ADD_TRANSACTION',
-                payload: {
-                    id: Date.now(),
+                });
+            } else {
+                await databaseService.addTransaction({
+                    id: Date.now().toString(),
                     amount: parseFloat(transactionData.amount),
                     type: transactionData.type,
                     category: transactionData.category,
                     account: transactionData.account,
                     note: transactionData.note,
                     date: transactionData.date ? new Date(transactionData.date).toISOString() : new Date().toISOString()
-                }
-            });
+                });
+            }
+            await loadTransactionsForMonth(state.currentMonth);
+        } catch (error) {
+            dispatch({ type: 'SET_ERROR', payload: error.message });
+            console.error('Error saving transaction:', error);
         }
     };
 
+    // Budget management
+    const updateBudget = async (budgetData) => {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        try {
+            await databaseService.updateBudget(budgetData);
+            const budgets = await databaseService.getBudgets();
+            dispatch({ 
+                type: 'LOAD_INITIAL_DATA', 
+                payload: { ...state, budgets } 
+            });
+        } catch (error) {
+            dispatch({ type: 'SET_ERROR', payload: error.message });
+            console.error('Error updating budget:', error);
+        }
+    };
+
+    const addBudget = async (budgetData) => {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        try {
+            await databaseService.addBudget({
+                id: Date.now().toString(),
+                ...budgetData
+            });
+            const budgets = await databaseService.getBudgets();
+            dispatch({ 
+                type: 'LOAD_INITIAL_DATA', 
+                payload: { ...state, budgets } 
+            });
+        } catch (error) {
+            dispatch({ type: 'SET_ERROR', payload: error.message });
+            console.error('Error adding budget:', error);
+        }
+    };
+
+    const deleteBudget = async (budgetId) => {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        try {
+            await databaseService.deleteBudget(budgetId);
+            const budgets = await databaseService.getBudgets();
+            dispatch({ 
+                type: 'LOAD_INITIAL_DATA', 
+                payload: { ...state, budgets } 
+            });
+        } catch (error) {
+            dispatch({ type: 'SET_ERROR', payload: error.message });
+            console.error('Error deleting budget:', error);
+        }
+    };
+
+    // Settings management
     const changeLanguage = async (language) => {
         try {
-            dispatch({
-                type: 'SET_LANGUAGE',
-                payload: language
-            });
-            await AsyncStorage.setItem('APP_LANGUAGE', language);
-            console.log('Language changed and saved:', language);
+            await databaseService.setSetting('language', language);
+            dispatch({ type: 'SET_LANGUAGE', payload: language });
         } catch (error) {
             console.error('Error changing language:', error);
         }
     };
 
-    const setTheme = (theme) => {
-        dispatch({
-            type: 'SET_THEME',
-            payload: theme
-        });
+    const setTheme = async (theme) => {
+        try {
+            await databaseService.setSetting('theme', theme);
+            dispatch({ type: 'SET_THEME', payload: theme });
+        } catch (error) {
+            console.error('Error setting theme:', error);
+        }
     };
 
     const setFontLoaded = (loaded) => {
-        dispatch({
-            type: 'SET_FONT_LOADED',
-            payload: loaded
-        });
+        dispatch({ type: 'SET_FONT_LOADED', payload: loaded });
     };
 
-    const setHasLaunched = (launched) => {
-        dispatch({
-            type: 'SET_HAS_LAUNCHED',
-            payload: launched
-        });
+    const setHasLaunched = async (launched) => {
+        try {
+            await databaseService.setSetting('has_launched', launched.toString());
+            dispatch({ type: 'SET_HAS_LAUNCHED', payload: launched });
+        } catch (error) {
+            console.error('Error setting has_launched:', error);
+        }
     };
 
+    // date formatting utility
     const formatDate = (dateString) => {
         try {
             return format(new Date(dateString), 'yyyy-MM-dd');
@@ -375,9 +302,10 @@ export const GlobalProvider = ({ children }) => {
             return format(new Date(), 'yyyy-MM-dd');
         }
     };
+
     return (
         <GlobalContext.Provider value={{ 
-            state, 
+            state,
             dispatch,
             onSave,
             formatDate,
@@ -388,7 +316,9 @@ export const GlobalProvider = ({ children }) => {
             updateBudget,
             addBudget,
             deleteBudget,
-            updateBudgetSpending
+            // Loading and error states
+            isLoading: state.isLoading,
+            error: state.error
         }}>
             {children}
         </GlobalContext.Provider>
@@ -402,3 +332,5 @@ export const useGlobalContext = () => {
     }
     return context;
 };
+
+export default GlobalProvider;

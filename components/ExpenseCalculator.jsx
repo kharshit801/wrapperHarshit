@@ -845,7 +845,7 @@ const handleBackspace = useCallback(() => {
               backgroundColor: 'rgba(0,0,0,0.5)',
             }}>
               <View style={{
-                backgroundColor: COLORS.background,
+                backgroundColor: '#FFFFFF',
                 padding: wp('4%'),
                 borderTopLeftRadius: wp('4%'),
                 borderTopRightRadius: wp('4%'),
@@ -874,6 +874,8 @@ const handleBackspace = useCallback(() => {
                   display="spinner"
                   onChange={showDatePicker ? onDateChange : onTimeChange}
                   style={{ height: hp('25%') }}
+                  textColor="#000000"
+                  themeVariant="light"
                 />
               </View>
             </View>

@@ -16,7 +16,7 @@ const resources = {
 
 i18next.use(initReactI18next).init({
     lng: 'en',
-    debug: true,
+    debug: false,
     compatibilityJSON: 'v3',
     //jab language traslaton nahi milegi to ye language show hogi
     fallbackLng: 'en',

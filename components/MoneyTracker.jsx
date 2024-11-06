@@ -1,4 +1,8 @@
 // MoneyTracker.js
+import TransactionParser from './TransactionParser';
+import ReceiptParser from '../utils/ReceiptParser';
+
+import GeminiTransactionParser from '../utils/GeminiTransactionParser';
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -34,6 +38,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 const MoneyTracker = () => {
+  const { onSave } = useGlobalContext();
   const navigation = useNavigation();
   const { state, dispatch } = useGlobalContext();
   const [showCalculator, setShowCalculator] = useState(false);
@@ -119,68 +124,73 @@ const MoneyTracker = () => {
   
   const handleOCR = async (base64Image) => {
     try {
-      const apiKey = 'K82750295688957';
-  
-      const formData = new FormData();
-      formData.append('apikey', apiKey);
-      formData.append('base64Image', `data:image/jpeg;base64,${base64Image}`);
-      formData.append('language', 'eng');
-      formData.append('detectOrientation', 'true');
-      formData.append('scale', 'true');
-      formData.append('OCREngine', '2');
-  
-      const response = await axios.post(
-        'https://api.ocr.space/parse/image',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'apikey': apiKey
-          }
-        }
-      );
-  
-      if (response.data.IsErroredOnProcessing) {
-        throw new Error(response.data.ErrorMessage || "OCR processing failed");
-      }
-  
-      if (!response.data.ParsedResults || response.data.ParsedResults.length === 0) {
-        throw new Error("No text was extracted from the image");
-      }
-  
-      const parsedText = response.data.ParsedResults[0].ParsedText;
-      console.log('OCR Extracted Text:', parsedText);
-      
-      // Parse the expense data
-      const expenseData = parseExpenseData(parsedText);
-      console.log(expenseData);
+      const parser = new ReceiptParser();
+      const details = await parser.parseReceipt(base64Image);
       
       Alert.alert(
         "Receipt Processed",
-        `Extracted Amount: ₹${expenseData.amount}\n\nFull Text:\n${parsedText}`,
+        `Amount: ₹${details.amount}\nCategory: ${details.category}\nAccount: ${details.account}\n\n${details.notes}`,
         [
           {
             text: "Add Transaction",
-            onPress: () => {
-              setEditingTransaction({
-                amount: parseFloat(expenseData.amount),
+            onPress: async () => {
+              const formattedTransaction = {
+                amount: parseFloat(details.amount),
                 type: "EXPENSE",
                 date: new Date().toISOString(),
-                description: "Receipt Scan"
+                category: details.category,
+                account: details.account,
+                note: details.notes || '',
+              };
+              
+              try {
+                // Save to database using onSave
+                await onSave(formattedTransaction);
+                
+                // confirmation
+                Alert.alert(
+                  "Success",
+                  "Transaction added successfully!",
+                  [{ text: "OK" }]
+                );
+              } catch (error) {
+                console.error("Error saving transaction:", error);
+                Alert.alert(
+                  "Error",
+                  "Failed to save transaction. Please try again."
+                );
+              }
+            }
+          },
+          {
+            text: "Edit",
+            onPress: () => {
+              setEditingTransaction({
+                amount: parseFloat(details.amount),
+                type: "EXPENSE",
+                date: new Date().toISOString(),
+                category: details.category,
+                account: details.account,
+                note: details.notes || '', // Changed from notes to note
               });
               setShowCalculator(true);
             }
           },
-          { text: "Cancel", style: "cancel" }
+          {
+            text: "Cancel",
+            style: "cancel"
+          }
         ]
       );
-  
     } catch (error) {
-      console.error("OCR Error:", error);
-      Alert.alert("OCR Error", error.message || "Failed to process receipt");
+      console.error("Receipt Processing Error:", error);
+      Alert.alert(
+        "Error",
+        "Failed to process receipt. Please try again or enter details manually."
+      );
     }
   };
-  
+
   const parseExpenseData = (text) => {
     // Improved regex to find amount - looks for currency symbols and numbers
     const amountRegex = /(?:₹|RS|INR|Rs)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i;

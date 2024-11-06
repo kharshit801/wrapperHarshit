@@ -1,5 +1,6 @@
 import React, { createContext, useReducer, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SQLite from 'expo-sqlite';
 import { format, parseISO, addMonths, subMonths } from 'date-fns';
 import i18next from 'i18next';
 
@@ -26,12 +27,17 @@ const initialState = {
         total: 0
     },
     currentMonth: new Date().toISOString(),
-    language: null, // Initially null to signify it should be loaded from AsyncStorage
+    language: null,
     theme: 'light',
     fontLoaded: false,
     hasLaunched: false
 };
 
+// Initialize database
+let db;
+(async () => {
+    db = await SQLite.openDatabaseAsync('expenses.db');
+})();
 
 const globalReducer = (state, action) => {
     switch (action.type) {
@@ -54,22 +60,9 @@ const globalReducer = (state, action) => {
             };
 
         case 'ADD_TRANSACTION':
-            const updatedTransactions = [...state.transactions, action.payload];
-            const expense = updatedTransactions
-                .filter(t => t.type === 'EXPENSE')
-                .reduce((sum, t) => sum + t.amount, 0);
-            const income = updatedTransactions
-                .filter(t => t.type === 'INCOME')
-                .reduce((sum, t) => sum + t.amount, 0);
-
             return {
                 ...state,
-                transactions: updatedTransactions,
-                summary: {
-                    expense,
-                    income,
-                    total: income - expense
-                }
+                transactions: [...state.transactions, action.payload]
             };
 
         case 'NEXT_MONTH':
@@ -77,20 +70,20 @@ const globalReducer = (state, action) => {
                 ...state,
                 currentMonth: addMonths(new Date(state.currentMonth), 1).toISOString()
             };
-            
+
         case 'PREVIOUS_MONTH':
             return {
                 ...state,
                 currentMonth: subMonths(new Date(state.currentMonth), 1).toISOString()
             };
-    
+
         case 'CLEAR_TRANSACTIONS':
             return { 
                 ...state, 
                 transactions: [], 
                 summary: initialState.summary 
             };
-        
+
         case 'LOAD_STATE':
             return action.payload || initialState;
 
@@ -107,22 +100,9 @@ const globalReducer = (state, action) => {
             };
 
         case 'DELETE_TRANSACTION':
-            const filteredTransactions = state.transactions.filter(t => t.id !== action.payload);
-            const newExpense = filteredTransactions
-                .filter(t => t.type === 'EXPENSE')
-                .reduce((sum, t) => sum + t.amount, 0);
-            const newIncome = filteredTransactions
-                .filter(t => t.type === 'INCOME')
-                .reduce((sum, t) => sum + t.amount, 0);
-            
             return {
                 ...state,
-                transactions: filteredTransactions,
-                summary: {
-                    expense: newExpense,
-                    income: newIncome,
-                    total: newIncome - newExpense
-                }
+                transactions: state.transactions.filter(t => t.id !== action.payload)
             };
 
         case 'EDIT_TRANSACTION':
@@ -130,29 +110,14 @@ const globalReducer = (state, action) => {
             if (transactionIndex >= 0) {
                 const transactionsCopy = [...state.transactions];
                 transactionsCopy[transactionIndex] = action.payload;
-                
-                const updatedExpense = transactionsCopy
-                    .filter(t => t.type === 'EXPENSE')
-                    .reduce((sum, t) => sum + t.amount, 0);
-                const updatedIncome = transactionsCopy
-                    .filter(t => t.type === 'INCOME')
-                    .reduce((sum, t) => sum + t.amount, 0);
-
                 return {
                     ...state,
-                    transactions: transactionsCopy,
-                    summary: {
-                        expense: updatedExpense,
-                        income: updatedIncome,
-                        total: updatedIncome - updatedExpense
-                    }
+                    transactions: transactionsCopy
                 };
-
             }
             return state;
 
-            case 'ADD_CATEGORY':
-            // Check if category already exists
+        case 'ADD_CATEGORY':
             const categoryExists = state.categories.some(
                 cat => cat.title.toLowerCase() === action.payload.title.toLowerCase()
             );
@@ -173,7 +138,6 @@ const globalReducer = (state, action) => {
             };
 
         case 'DELETE_CATEGORY':
-            // Check if category has transactions
             const hasTransactions = state.transactions.some(
                 t => t.category.toLowerCase() === action.payload.toLowerCase()
             );
@@ -186,40 +150,61 @@ const globalReducer = (state, action) => {
                     category => category.id !== action.payload
                 )
             };
-            case 'UPDATE_BUDGET':
-                return {
-                    ...state,
-                    budgets: state.budgets.map(budget =>
-                        budget.id === action.payload.id ? action.payload : budget
-                    )
-                };
-    
-            case 'ADD_BUDGET':
-                return {
-                    ...state,
-                    budgets: [...state.budgets, action.payload]
-                };
-    
-            case 'DELETE_BUDGET':
-                return {
-                    ...state,
-                    budgets: state.budgets.filter(budget => budget.id !== action.payload)
-                };
-    
-            case 'UPDATE_BUDGET_SPENDING':
-                return {
-                    ...state,
-                    budgets: state.budgets.map(budget => {
-                        if (budget.id === action.payload.id) {
-                            return {
-                                ...budget,
-                                spent: action.payload.spent
-                            };
-                        }
-                        return budget;
-                    })
-                };
-    
+
+        case 'UPDATE_BUDGET':
+            return {
+                ...state,
+                budgets: state.budgets.map(budget =>
+                    budget.id === action.payload.id ? action.payload : budget
+                )
+            };
+
+        case 'ADD_BUDGET':
+            return {
+                ...state,
+                budgets: [...state.budgets, action.payload]
+            };
+
+        case 'DELETE_BUDGET':
+            return {
+                ...state,
+                budgets: state.budgets.filter(budget => budget.id !== action.payload)
+            };
+
+        case 'UPDATE_BUDGET_SPENDING':
+            return {
+                ...state,
+                budgets: state.budgets.map(budget => {
+                    if (budget.id === action.payload.id) {
+                        return {
+                            ...budget,
+                            spent: action.payload.spent
+                        };
+                    }
+                    return budget;
+                })
+            };
+
+        case 'LOAD_EXPENSES':
+            return {
+                ...state,
+                transactions: action.payload,
+                summary: {
+                    expense: action.payload
+                        .filter((t) => t.type === 'EXPENSE')
+                        .reduce((sum, t) => sum + t.amount, 0),
+                    income: action.payload
+                        .filter((t) => t.type === 'INCOME')
+                        .reduce((sum, t) => sum + t.amount, 0),
+                    total:
+                        action.payload
+                            .filter((t) => t.type === 'INCOME')
+                            .reduce((sum, t) => sum + t.amount, 0) -
+                        action.payload
+                            .filter((t) => t.type === 'EXPENSE')
+                            .reduce((sum, t) => sum + t.amount, 0),
+                },
+            };
 
         default:
             return state;
@@ -232,11 +217,12 @@ export const GlobalProvider = ({ children }) => {
     const [state, dispatch] = useReducer(globalReducer, initialState);
 
     useEffect(() => {
-        loadInitialState(); // Load entire state, including language, on mount
+        createTable();
+        loadExpensesFromDB();
     }, []);
 
     useEffect(() => {
-        saveState(state); // Save state changes to AsyncStorage
+        saveState(state);
     }, [state]);
 
     useEffect(() => {
@@ -246,6 +232,102 @@ export const GlobalProvider = ({ children }) => {
         }
     }, [state.language]);
 
+    const createTable = async () => {
+        try {
+            await db.execAsync(`
+                CREATE TABLE IF NOT EXISTS expenses (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    amount REAL, 
+                    type TEXT, 
+                    category TEXT, 
+                    account TEXT, 
+                    note TEXT, 
+                    date TEXT
+                );
+            `);
+            console.log('Table created successfully');
+        } catch (error) {
+            console.error('Error creating table:', error);
+        }
+    };
+
+    const addExpense = async (expense) => {
+        try {
+            const result = await db.runAsync(
+                'INSERT INTO expenses (amount, type, category, account, note, date) VALUES (?, ?, ?, ?, ?, ?)',
+                [expense.amount, expense.type, expense.category, expense.account, expense.note, expense.date]
+            );
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    const fetchExpenses = async () => {
+        try {
+            const expenses = await db.getAllAsync('SELECT * FROM expenses');
+            return expenses;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    const updateExpense = async (expense) => {
+        try {
+            const result = await db.runAsync(
+                'UPDATE expenses SET amount = ?, type = ?, category = ?, account = ?, note = ?, date = ? WHERE id = ?',
+                [expense.amount, expense.type, expense.category, expense.account, expense.note, expense.date, expense.id]
+            );
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    const deleteExpense = async (id) => {
+        try {
+            const result = await db.runAsync('DELETE FROM expenses WHERE id = ?', [id]);
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    const loadExpensesFromDB = async () => {
+        try {
+            const expenses = await fetchExpenses();
+            dispatch({
+                type: 'LOAD_EXPENSES',
+                payload: expenses,
+            });
+        } catch (error) {
+            console.error('Error loading expenses from DB:', error);
+        }
+    };
+
+    const onSave = async (transactionData) => {
+        try {
+            if (transactionData.id && transactionData.isUpdate) {
+                await updateExpense({
+                    ...transactionData,
+                    amount: parseFloat(transactionData.amount),
+                    date: transactionData.date ? new Date(transactionData.date).toISOString() : new Date().toISOString(),
+                });
+            } else {
+                await addExpense({
+                    amount: parseFloat(transactionData.amount),
+                    type: transactionData.type,
+                    category: transactionData.category,
+                    account: transactionData.account,
+                    note: transactionData.note,
+                    date: transactionData.date ? new Date(transactionData.date).toISOString() : new Date().toISOString(),
+                });
+            }
+            await loadExpensesFromDB();
+        } catch (error) {
+            console.error('Error saving transaction:', error);
+        }
+    };
 
     const updateBudget = (budgetData) => {
         dispatch({
@@ -285,13 +367,11 @@ export const GlobalProvider = ({ children }) => {
                 dispatch({ type: 'LOAD_STATE', payload: JSON.parse(savedState) });
             }
 
-            // Load language specifically from AsyncStorage
             const savedLanguage = await AsyncStorage.getItem('APP_LANGUAGE');
             if (savedLanguage) {
                 dispatch({ type: 'SET_LANGUAGE', payload: savedLanguage });
                 console.log('Loaded saved language:', savedLanguage);
             } else {
-                // Default language if none saved
                 dispatch({ type: 'SET_LANGUAGE', payload: 'en' });
             }
         } catch (error) {
@@ -304,32 +384,6 @@ export const GlobalProvider = ({ children }) => {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
         } catch (error) {
             console.error('Error saving state:', error);
-        }
-    };
-
-    const onSave = (transactionData) => {
-        if (transactionData.id && transactionData.isUpdate) {
-            dispatch({
-                type: 'EDIT_TRANSACTION',
-                payload: {
-                    ...transactionData,
-                    amount: parseFloat(transactionData.amount),
-                    date: transactionData.date ? new Date(transactionData.date).toISOString() : new Date().toISOString()
-                }
-            });
-        } else {
-            dispatch({
-                type: 'ADD_TRANSACTION',
-                payload: {
-                    id: Date.now(),
-                    amount: parseFloat(transactionData.amount),
-                    type: transactionData.type,
-                    category: transactionData.category,
-                    account: transactionData.account,
-                    note: transactionData.note,
-                    date: transactionData.date ? new Date(transactionData.date).toISOString() : new Date().toISOString()
-                }
-            });
         }
     };
 
@@ -375,6 +429,7 @@ export const GlobalProvider = ({ children }) => {
             return format(new Date(), 'yyyy-MM-dd');
         }
     };
+
     return (
         <GlobalContext.Provider value={{ 
             state, 
@@ -388,7 +443,11 @@ export const GlobalProvider = ({ children }) => {
             updateBudget,
             addBudget,
             deleteBudget,
-            updateBudgetSpending
+            updateBudgetSpending,
+            addExpense,
+            updateExpense,
+            deleteExpense,
+            fetchExpenses
         }}>
             {children}
         </GlobalContext.Provider>

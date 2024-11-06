@@ -177,15 +177,15 @@ useEffect(() => {
           ]}
         >
           <View style={styles.featureItem}>
-            <Text style={styles.featureTitle}>{t('Real-Time Tracking')}</Text>
+            <Text style={styles.featureTitle}>{t('📊Real-Time Tracking')}</Text>
             <Text style={styles.featureDescription}>{t('Monitor your finances as they happen')}</Text>
           </View>
           <View style={styles.featureItem}>
-            <Text style={styles.featureTitle}>{t('Smart Budgeting')}</Text>
+            <Text style={styles.featureTitle}>{t('🎯Smart Budgeting')}</Text>
             <Text style={styles.featureDescription}>{t('AI-powered budget recommendations')}</Text>
           </View>
           <View style={styles.featureItem}>
-            <Text style={styles.featureTitle}>{t('Detailed Analytics')}</Text>
+            <Text style={styles.featureTitle}>{t('📈Detailed Analytics')}</Text>
             <Text style={styles.featureDescription}>{t('Understand your spending patterns')}</Text>
           </View>
         </Animated.View>

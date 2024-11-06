@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import {
@@ -8,7 +8,7 @@ import {
 } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
 
-export default function Header() {
+export default function Header({seachIconShown}) {
   const navigation = useNavigation();
 
   return (
@@ -19,9 +19,10 @@ export default function Header() {
           <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
         <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
-        <TouchableOpacity style={styles.searchButton}>
-          <Ionicons name="search" size={wp('6%')} color={COLORS.text.primary} />
-        </TouchableOpacity>
+        {seachIconShown == true ?  <TouchableOpacity onPress ={() => Alert.alert("Search")} style={styles.searchButton}>
+          <Ionicons name="search" size={wp('6%')} color={  COLORS.text.primary} />
+        </TouchableOpacity> : <View/>}
+       
       </View>
     </SafeAreaView>
   );
@@ -34,7 +35,8 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent:'auto',
+    gap:wp("26%"),
     alignItems: 'center',
     padding: wp('4%'),
     backgroundColor: COLORS.background,

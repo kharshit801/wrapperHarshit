@@ -24,7 +24,7 @@ const ChatSpotlightGuide = ({ onDismiss }) => {
         duration: 500,
         useNativeDriver: true,
       }),
-      Animated.delay(5000),
+      Animated.delay(1000),
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,

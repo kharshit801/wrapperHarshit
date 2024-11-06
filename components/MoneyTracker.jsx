@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
-  Modal,
+  Modal,Alert
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../constants/theme";
+import * as ImagePicker from 'expo-image-picker';
+import axios from 'axios';
+
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -46,10 +49,150 @@ const MoneyTracker = () => {
       i18n.changeLanguage(state.language);
     }
   }, [state.language]);
+
+  const showImageSourceOptions = () => {
+    Alert.alert(
+      "Select Image Source",
+      "Choose where you want to pick the image from",
+      [
+        {
+          text: "Camera",
+          onPress: () => pickImage('camera')
+        },
+        {
+          text: "Gallery",
+          onPress: () => pickImage('gallery')
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
+  };
+
+  const pickImage = async (source) => {
+    try {
+      let permissionResult;
+      let result;
+
+      if (source === 'camera') {
+        permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permissionResult.granted) {
+          Alert.alert("Permission Error", "Permission to access camera is required!");
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 0.01,
+          base64: true,
+          aspect: [4, 3],
+          maxWidth: 600,
+          maxHeight: 450
+        });
+      } else {
+        permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permissionResult.granted) {
+          Alert.alert("Permission Error", "Permission to access gallery is required!");
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 0.01,
+          base64: true,
+          aspect: [4, 3],
+          maxWidth: 600,
+          maxHeight: 450
+        });
+      }
+
+      if (!result.canceled) {
+        await handleOCR(result.assets[0].base64);
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to capture/select image");
+    }
+  };
   
-
-
-
+  const handleOCR = async (base64Image) => {
+    try {
+      const apiKey = 'K82750295688957';
+  
+      const formData = new FormData();
+      formData.append('apikey', apiKey);
+      formData.append('base64Image', `data:image/jpeg;base64,${base64Image}`);
+      formData.append('language', 'eng');
+      formData.append('detectOrientation', 'true');
+      formData.append('scale', 'true');
+      formData.append('OCREngine', '2');
+  
+      const response = await axios.post(
+        'https://api.ocr.space/parse/image',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'apikey': apiKey
+          }
+        }
+      );
+  
+      if (response.data.IsErroredOnProcessing) {
+        throw new Error(response.data.ErrorMessage || "OCR processing failed");
+      }
+  
+      if (!response.data.ParsedResults || response.data.ParsedResults.length === 0) {
+        throw new Error("No text was extracted from the image");
+      }
+  
+      const parsedText = response.data.ParsedResults[0].ParsedText;
+      console.log('OCR Extracted Text:', parsedText);
+      
+      // Parse the expense data
+      const expenseData = parseExpenseData(parsedText);
+      console.log(expenseData);
+      
+      Alert.alert(
+        "Receipt Processed",
+        `Extracted Amount: ₹${expenseData.amount}\n\nFull Text:\n${parsedText}`,
+        [
+          {
+            text: "Add Transaction",
+            onPress: () => {
+              setEditingTransaction({
+                amount: parseFloat(expenseData.amount),
+                type: "EXPENSE",
+                date: new Date().toISOString(),
+                description: "Receipt Scan"
+              });
+              setShowCalculator(true);
+            }
+          },
+          { text: "Cancel", style: "cancel" }
+        ]
+      );
+  
+    } catch (error) {
+      console.error("OCR Error:", error);
+      Alert.alert("OCR Error", error.message || "Failed to process receipt");
+    }
+  };
+  
+  const parseExpenseData = (text) => {
+    // Improved regex to find amount - looks for currency symbols and numbers
+    const amountRegex = /(?:₹|RS|INR|Rs)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i;
+    const match = text.match(amountRegex);
+    const amount = match ? match[1].replace(/,/g, '') : "0.00";
+    
+    return {
+      amount: amount,
+      text: text
+    };
+  };
+  
   const handleEdit = (transaction) => {
     setEditingTransaction(transaction);
     setShowCalculator(true);
@@ -111,7 +254,7 @@ const MoneyTracker = () => {
         backgroundColor="transparent"
         barStyle="light-content"
       />
-      <Header />
+      <Header  seachIconShown={true}/>
 
       {/* Month Navigation */}
       <View style={styles.monthNav}>
@@ -190,6 +333,7 @@ const MoneyTracker = () => {
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => setShowCalculator(true)}
+        onLongPress={showImageSourceOptions}
       >
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>

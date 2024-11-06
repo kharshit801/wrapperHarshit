@@ -138,7 +138,7 @@ const BudgetsScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <BudgetNotificationListener onNotificationReceived={handleNotificationReceived} />
-      <Header />
+      <Header  seachIconShown={false}/>
       <ScrollView style={styles.content}>
         <View style={styles.overviewContainer}>
           <View style={styles.overviewHeader}>

@@ -41,7 +41,7 @@ const AccountsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-        <Header />
+        <Header  seachIconShown={false}/>
       <ScrollView style={styles.content}>
         <View style={styles.totalBalance}>
           <Text style={styles.totalBalanceLabel}>All Accounts</Text>

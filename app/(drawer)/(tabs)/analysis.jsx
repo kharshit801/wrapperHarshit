@@ -71,10 +71,11 @@ const Analysis = () => {
     // Process transactions
     transactions.forEach(transaction => {
       const transactionDate = new Date(transaction.date);
+            
       const monthDiff = (today.getFullYear() - transactionDate.getFullYear()) * 12 +
         today.getMonth() - transactionDate.getMonth();
 
-      if (monthDiff < periodCount) {
+      if (monthDiff < periodCount && monthDiff >= 0) {
         const periodIndex = periodCount - monthDiff - 1;
         if (transaction.type === "EXPENSE") {
           periodData[periodIndex].expenses += transaction.amount;
@@ -93,8 +94,27 @@ const Analysis = () => {
         }
       }
     });
-
-    // Calculate savings rate and budget utilization
+    const handleFutureTransactions = (periodData, transaction, periodCount, today) => {
+      const transactionDate = new Date(transaction.date);
+      const monthDiff = (today.getFullYear() - transactionDate.getFullYear()) * 12 +
+        today.getMonth() - transactionDate.getMonth();
+    
+      if (monthDiff < periodCount && monthDiff >= 0) {
+        const periodIndex = periodCount - monthDiff - 1;
+        if (transaction.type === "EXPENSE") {
+          periodData[periodIndex].expenses += transaction.amount;
+        } else {
+          periodData[periodIndex].income += transaction.amount;
+        }
+      } else if (monthDiff >= periodCount) {
+        const maxPeriodIndex = periodCount - 1;
+        if (transaction.type === "EXPENSE") {
+          periodData[maxPeriodIndex].expenses += transaction.amount;
+        } else {
+          periodData[maxPeriodIndex].income += transaction.amount;
+        }
+      }
+    };
     periodData.forEach(period => {
       period.savings = ((period.income - period.expenses) / period.income * 100) || 0;
     });
@@ -200,8 +220,8 @@ const Analysis = () => {
           <Text style={styles.chartTitle}>Income vs Expenses Trend</Text>
           <LineChart
           data={spendingTrendData}
-          width={screenWidth - wp("12%")} // Increased padding
-          height={220} // Fixed height instead of percentage
+          width={screenWidth - wp("12%")}
+          height={220} 
           yAxisLabel="₹"
           chartConfig={{
             backgroundColor: COLORS.primary,
@@ -214,7 +234,7 @@ const Analysis = () => {
               borderRadius: 16,
             },
             propsForDots: {
-              r: "4", // Reduced dot size
+              r: "4", 
               strokeWidth: "2",
               stroke: COLORS.primary
             },
@@ -258,8 +278,8 @@ const Analysis = () => {
             backgroundColor="transparent"
             paddingLeft={0}
             absolute
-            hasLegend={false} // Disable default legend
-            center={[50, 0]} // Adjust center position
+            hasLegend={false} 
+            center={[50, 0]} 
           />
           <CategoryLegend data={categoryChartData} />
         </View>

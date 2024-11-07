@@ -138,7 +138,7 @@ useEffect(() => {
   const handleSlideComplete = async () => {
     try {
       await markWelcomeAsSeen();
-      router.replace('OTPScreen');
+      router.replace('(drawer)');
     } catch (error) {
       console.error('Error marking welcome as seen:', error);
     }

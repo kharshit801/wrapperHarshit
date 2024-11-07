@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput,KeyboardAvoidingView,Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS } from '../../../constants/theme';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
@@ -9,15 +9,54 @@ import { useTranslation } from 'react-i18next';
 import { useBudgetNotifications, BudgetNotificationListener } from '../../../components/Budgetnotification';
 
 const BudgetsScreen = () => {
-  const { state, updateBudget, changeLanguage, fetchSpentByCategory } = useGlobalContext();
+  const { state, updateBudget, fetchSpentByCategory } = useGlobalContext();
   const { t, i18n } = useTranslation();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [newLimit, setNewLimit] = useState('');
-  const [budgets, setBudgets] = useState(state.budgets || []);
+  const [budgets, setBudgets] = useState([]);
   const [spentByCategory, setSpentByCategory] = useState({});
 
   const { checkBudgetThresholds, sendBudgetNotification } = useBudgetNotifications();
+
+  // Initialize budgets for all categories
+  useEffect(() => {
+    const initializeBudgets = async () => {
+      try {
+        const allCategories = [
+          ...state.categories.EXPENSE,
+          ...state.categories.TRANSFER
+        ];
+        
+        let currentBudgets = state.budgets || [];
+        
+        // Create default budgets for categories that don't have one
+        const newBudgets = allCategories.map(category => {
+          const existingBudget = currentBudgets.find(b => b.category === category);
+          if (existingBudget) {
+            return existingBudget;
+          }
+          return {
+            id: Date.now().toString() + category,
+            category: category,
+            title: category,
+            limit: 0,
+            icon: getCategoryIcon(category),
+            type: state.categories.EXPENSE.includes(category) ? 'EXPENSE' : 'TRANSFER'
+          };
+        });
+        
+        setBudgets(newBudgets);
+        if (!state.budgets || state.budgets.length === 0) {
+          updateBudget(newBudgets);
+        }
+      } catch (error) {
+        console.error('Error initializing budgets:', error);
+      }
+    };
+
+    initializeBudgets();
+  }, [state.categories]);
 
   useEffect(() => {
     if (state.language && i18n.language !== state.language) {
@@ -52,14 +91,33 @@ const BudgetsScreen = () => {
     fetchSpentData();
   }, [fetchSpentByCategory]);
 
+  const getCategoryIcon = (category) => {
+    const iconMap = {
+      'Food & Dining': 'utensils',
+      'Transportation': 'car',
+      'Shopping': 'shopping-bag',
+      'Entertainment': 'film',
+      'Bills & Utilities': 'file-invoice-dollar',
+      'Health & Fitness': 'heartbeat',
+      'Travel': 'plane',
+      'Account Transfer': 'exchange-alt',
+      'Investment Transfer': 'chart-line',
+      'Debt Payment': 'credit-card',
+      'Other': 'dot-circle'
+    };
+    
+    return iconMap[category] || 'dot-circle';
+  };
+
   const totalBudget = budgets.reduce((total, budget) => total + budget.limit, 0);
   const totalSpent = Object.values(spentByCategory).reduce((total, spent) => total + spent, 0);
   const totalRemaining = totalBudget - totalSpent;
   const spentPercentage = (totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0);
 
   const handleNotificationReceived = (notification) => {
-    const { budgetId, percentage } = notification.request.content.data;
-    console.log(`Received notification for budget ${budgetId} at ${percentage}%`);
+    const { percentage, category, title } = notification.request.content.data;
+    console.log(`Received notification: ${title} in category ${category} at ${percentage}%`);
+    
   };
 
   const openEditModal = (budget) => {
@@ -75,16 +133,12 @@ const BudgetsScreen = () => {
         limit: parseInt(newLimit, 10)
       };
 
-      // Update local state first
       const updatedBudgets = budgets.map(budget =>
         budget.id === selectedBudget.id ? updatedBudget : budget
       );
       setBudgets(updatedBudgets);
-
-      // Then update global state
-      updateBudget(updatedBudgets); // Pass the updated budgets to the global provider
-
-      sendBudgetNotification(updatedBudget);
+      updateBudget(updatedBudgets);
+      sendBudgetNotification(updatedBudget); // Ensure this is called after updating the budget
 
       setModalVisible(false);
       setSelectedBudget(null);
@@ -93,7 +147,6 @@ const BudgetsScreen = () => {
   };
 
   const handleLimitChange = (text) => {
-    // Only allow numeric input
     const numericValue = text.replace(/[^0-9]/g, '');
     setNewLimit(numericValue);
   };
@@ -189,20 +242,42 @@ const BudgetsScreen = () => {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>{t('essentialExpenses')}</Text>
+        <Text style={styles.sectionTitle}>{t('Expenses')}</Text>
         <View style={styles.budgetsList}>
-          {budgets.filter(b => b.category === 'essential').map(renderBudgetCard)}
+          {state.categories && state.categories.EXPENSE ? (
+            state.categories.EXPENSE.map(category => {
+              const budget = budgets.find(b => b.category === category) || {
+                id: Date.now().toString() + category,
+                category: category,
+                title: category,
+                limit: 0,
+                icon: getCategoryIcon(category)
+              };
+              return renderBudgetCard(budget);
+            })
+          ) : (
+            <Text>{t('No expense categories available')}</Text>
+          )}
         </View>
 
-        <Text style={styles.sectionTitle}>{t('transport')}</Text>
+        <Text style={styles.sectionTitle}>{t('Transfers')}</Text>
         <View style={styles.budgetsList}>
-          {budgets.filter(b => b.category === 'transport').map(renderBudgetCard)}
+          {state.categories && state.categories.TRANSFER ? (
+            state.categories.TRANSFER.map(category => {
+              const budget = budgets.find(b => b.category === category) || {
+                id: Date.now().toString() + category,
+                category: category,
+                title: category,
+                limit: 0,
+                icon: getCategoryIcon(category)
+              };
+              return renderBudgetCard(budget);
+            })
+          ) : (
+            <Text>{t('No transfer categories available')}</Text>
+          )}
         </View>
 
-        <Text style={styles.sectionTitle}>{t('personal')}</Text>
-        <View style={styles.budgetsList}>
-          {budgets.filter(b => b.category === 'personal').map(renderBudgetCard)}
-        </View>
         <TouchableOpacity style={styles.addBudgetButton}>
           <View style={styles.addButtonContent}>
             <View style={styles.addIconContainer}>
@@ -240,7 +315,7 @@ const BudgetsScreen = () => {
               {selectedBudget && (
                 <>
                   <View style={styles.modalBudgetInfo}>
-                    <View style={[styles.modalIconContainer, { borderColor: getBudgetStatus(selectedBudget.spent, selectedBudget.limit).color }]}>
+                    <View style={[styles.modalIconContainer, { borderColor: getBudgetStatus(spentByCategory[selectedBudget.category] || 0, selectedBudget.limit).color }]}>
                       <FontAwesome5
                         name={selectedBudget.icon}
                         size={wp('6%')}
@@ -268,7 +343,7 @@ const BudgetsScreen = () => {
                   <View style={styles.modalCurrentInfo}>
                     <Text style={styles.modalInfoText}>Current Spent</Text>
                     <Text style={styles.modalInfoValue}>
-                      ₹{selectedBudget.spent.toLocaleString()}
+                      ₹{(spentByCategory[selectedBudget.category] || 0).toLocaleString()}
                     </Text>
                   </View>
 
@@ -281,10 +356,7 @@ const BudgetsScreen = () => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.modalButton, styles.modalSaveButton]}
-                      onPress={() => {
-                        Keyboard.dismiss();
-                        saveBudgetChange();
-                      }}
+                      onPress={saveBudgetChange}
                     >
                       <Text style={styles.modalSaveButtonText}>Save Changes</Text>
                     </TouchableOpacity>

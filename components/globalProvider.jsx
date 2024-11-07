@@ -333,6 +333,7 @@ export const GlobalProvider = ({ children }) => {
             const result = await db.runAsync('DELETE FROM expenses WHERE id = ?', [id]);
             return result;
         } catch (error) {
+            console.error('Error deleting transaction:', error);
             throw error;
         }
     };
@@ -474,6 +475,21 @@ export const GlobalProvider = ({ children }) => {
         }
     };
 
+    const fetchSpentByCategory = async () => {
+        try {
+            const result = await db.getAllAsync(`
+                SELECT category, SUM(amount) as totalSpent 
+                FROM expenses 
+                WHERE type = 'EXPENSE' 
+                GROUP BY category
+            `);
+            return result;
+        } catch (error) {
+            console.error('Error fetching spent by category:', error);
+            return [];
+        }
+    };
+
     return (
         <GlobalContext.Provider value={{ 
             state, 
@@ -492,7 +508,9 @@ export const GlobalProvider = ({ children }) => {
             updateExpense,
             deleteExpense,
             fetchExpenses,
-            updateCategoryBudget
+            updateCategoryBudget,
+            fetchSpentByCategory,
+            loadExpensesFromDB // Add loadExpensesFromDB to the context value
         }}>
             {children}
         </GlobalContext.Provider>

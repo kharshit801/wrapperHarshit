@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput,KeyboardAvoidingView,Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS } from '../../../constants/theme';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
@@ -10,12 +9,13 @@ import { useTranslation } from 'react-i18next';
 import { useBudgetNotifications, BudgetNotificationListener } from '../../../components/Budgetnotification';
 
 const BudgetsScreen = () => {
-  const { state, updateBudget, changeLanguage } = useGlobalContext();
+  const { state, updateBudget, changeLanguage, fetchSpentByCategory } = useGlobalContext();
   const { t, i18n } = useTranslation();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [newLimit, setNewLimit] = useState('');
   const [budgets, setBudgets] = useState(state.budgets || []);
+  const [spentByCategory, setSpentByCategory] = useState({});
 
   const { checkBudgetThresholds, sendBudgetNotification } = useBudgetNotifications();
 
@@ -35,8 +35,25 @@ const BudgetsScreen = () => {
     checkBudgetThresholds(budgets);
   }, [budgets, checkBudgetThresholds]);
 
+  useEffect(() => {
+    const fetchSpentData = async () => {
+      try {
+        const spentData = await fetchSpentByCategory();
+        const spentMap = spentData.reduce((acc, { category, totalSpent }) => {
+          acc[category] = totalSpent;
+          return acc;
+        }, {});
+        setSpentByCategory(spentMap);
+      } catch (error) {
+        console.error('Error fetching spent by category:', error);
+      }
+    };
+
+    fetchSpentData();
+  }, [fetchSpentByCategory]);
+
   const totalBudget = budgets.reduce((total, budget) => total + budget.limit, 0);
-  const totalSpent = budgets.reduce((total, budget) => total + budget.spent, 0);
+  const totalSpent = Object.values(spentByCategory).reduce((total, spent) => total + spent, 0);
   const totalRemaining = totalBudget - totalSpent;
   const spentPercentage = (totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0);
 
@@ -100,8 +117,9 @@ const BudgetsScreen = () => {
   };
 
   const renderBudgetCard = (budget) => {
-    const status = getBudgetStatus(budget.spent, budget.limit);
-    const percentageUsed = ((budget.spent / budget.limit) * 100).toFixed(0);
+    const spent = spentByCategory[budget.category] || 0;
+    const status = getBudgetStatus(spent, budget.limit);
+    const percentageUsed = ((spent / budget.limit) * 100).toFixed(0);
 
     return (
       <TouchableOpacity key={budget.id} style={styles.budgetCard}>
@@ -120,13 +138,13 @@ const BudgetsScreen = () => {
             </View>
             <View style={styles.budgetProgressInfo}>
               <Text style={styles.budgetProgress}>
-                ₹{budget.spent.toLocaleString()} / ₹{budget.limit.toLocaleString()}
+                ₹{spent.toLocaleString()} / ₹{budget.limit.toLocaleString()}
               </Text>
               <Text style={[styles.budgetStatus, { color: status.color }]}>
                 {status.message}
               </Text>
             </View>
-            {renderProgressBar(budget.spent, budget.limit)}
+            {renderProgressBar(spent, budget.limit)}
             <Text style={styles.percentageText}>{percentageUsed}% {t('used')}</Text>
           </View>
         </View>
@@ -278,8 +296,6 @@ const BudgetsScreen = () => {
   );
 };
 
-
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -418,256 +434,252 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: wp('2%')
   },
-  
- modalContainer: {
-  flex: 1,
-  justifyContent: 'flex-end',
-  backgroundColor: 'rgba(0, 0, 0, 0.5)',
-},
-modalContent: {
-  backgroundColor: COLORS.background,
-  borderTopLeftRadius: wp('5%'),
-  borderTopRightRadius: wp('5%'),
-  padding: wp('5%'),
-  paddingBottom: Platform.OS === 'ios' ? hp('8%') : hp('4%'),
-},
-modalTitle: {
-  fontSize: wp('5%'),
-  fontWeight: 'bold',
-  marginBottom: hp('2%'),
-  color: COLORS.text.primary,
-},
-modalLabel: {
-  fontSize: wp('4%'),
-  marginBottom: hp('1%'),
-  color: COLORS.text.primary,
-},
-modalInput: {
-  flex: 1,
-  fontSize: wp('5%'),
-  color: COLORS.text.primary,
-  padding: 0,
-},
-modalButtons: {
-  flexDirection: 'row',
-  gap: wp('8%'),
-  justifyContent: 'center',
-  marginTop: hp('2%'),
-},
-modalButton: {
-  padding: wp('2%'),
-  backgroundColor: COLORS.primary,
-  borderRadius: 5,
-},
-modalButtonText: {
-  color: COLORS.text.secondary,
-  fontSize: wp('4%'),
-},
-editButton: {
-  marginTop: hp('1%'),
-  flexDirection: 'row',
-  alignItems: 'center',
-  padding: wp('1%'),
-  paddingBottom: hp('1%'),
- 
-},
-editButtonText: {
-  marginLeft: wp('1%'),
-  color: COLORS.text.primary,
-},
-modalHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: hp('3%'),
-},
-modalCloseButton: {
-  padding: wp('2%'),
-},
-modalBudgetInfo: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: hp('3%'),
-},
-modalIconContainer: {
-  width: wp('12%'),
-  height: wp('12%'),
-  borderRadius: wp('6%'),
-  backgroundColor: COLORS.lightbackground,
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginRight: wp('3%'),
-  borderWidth: 2,
-},
-modalBudgetTitle: {
-  fontSize: wp('4.5%'),
-  fontWeight: '500',
-  color: COLORS.text.primary,
-},
-modalInputContainer: {
-  marginBottom: hp('3%'),
-},
-modalInputLabel: {
-  fontSize: wp('3.5%'),
-  color: COLORS.text.secondary,
-  marginBottom: hp('1%'),
-},
-modalInputWrapper: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: COLORS.lightbackground,
-  borderRadius: wp('3%'),
-  paddingHorizontal: wp('4%'),
-  height: hp('7%'),
-},
-currencySymbol: {
-  fontSize: wp('5%'),
-  color: COLORS.text.primary,
-  marginRight: wp('2%'),
-},
-modalCurrentInfo: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  backgroundColor: COLORS.lightbackground,
-  padding: wp('4%'),
-  borderRadius: wp('3%'),
-  marginBottom: hp('3%'),
-},
-modalInfoText: {
-  fontSize: wp('3.5%'),
-  color: COLORS.text.secondary,
-},
-modalInfoValue: {
-  fontSize: wp('4%'),
-  fontWeight: '500',
-  color: COLORS.text.primary,
-},
-modalCancelButton: {
-  backgroundColor: COLORS.lightbackground,
-  paddingVertical: hp('2%'),
-  paddingHorizontal: wp('5%'),
-  borderRadius: wp('6%'),
-},
-modalSaveButton: {
-  backgroundColor: COLORS.primary,
-  paddingVertical: hp('2%'),
-  paddingHorizontal: wp('5%'),
-  borderRadius: wp('6%'),
-},
-modalCancelButtonText: {
-  color: COLORS.text.primary,
-  fontSize: wp('4%'),
-  fontWeight: '500',
-},
-modalSaveButtonText: {
-  color: '#FFFFFF',
-  fontSize: wp('4%'),
-  fontWeight: '500',
-},
-overviewContainer: {
-  backgroundColor: COLORS.lightbackground,
-  margin: wp('4%'),
-  borderRadius: wp('4%'),
-  padding: wp('4%'),
-  shadowColor: "#000",
-  shadowOffset: {
-    width: 0,
-    height: 2,
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  shadowOpacity: 0.1,
-  shadowRadius: 3.84,
-  elevation: 5,
-},
-overviewHeader: {
-  marginBottom: hp('2%'),
-},
-overviewTitleContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  marginBottom: hp('1%'),
-},
-overviewLabel: {
-  fontSize: wp('3.5%'),
-  color: COLORS.text.secondary,
-  fontWeight: '500',
-},
-infoButton: {
-  padding: wp('1%'),
-},
-overviewProgress: {
-  marginBottom: hp('2%'),
-},
-overviewProgressText: {
-  fontSize: wp('3.5%'),
-  color: COLORS.text.secondary,
-  marginTop: hp('1%'),
-  textAlign: 'center',
-},
-summary: {
-  flexDirection: 'row',
-  justifyContent: 'space-around',
-  alignItems: 'center',
-  paddingTop: hp('2%'),
-  borderTopWidth: 1,
-  borderTopColor: 'rgba(255, 255, 255, 0.1)',
-},
-summaryItem: {
-  flex: 1,
-  alignItems: 'center',
-},
-divider: {
-  width: 1,
-  height: hp('4%'),
-  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-},
-summaryLabel: {
-  fontSize: wp('3.5%'),
-  color: COLORS.text.secondary,
-  marginBottom: hp('0.5%'),
-},
-summaryAmount: {
-  fontSize: wp('4.5%'),
-  fontWeight: '600',
-},
-
-// New Add Budget Button Styles
-addBudgetButton: {
-  margin: wp('4%'),
-  marginTop: 0,
-  backgroundColor: COLORS.lightbackground,
-  borderRadius: wp('4%'),
-  overflow: 'hidden',
-},
-addButtonContent: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  padding: wp('4%'),
-},
-addIconContainer: {
-  width: wp('12%'),
-  height: wp('12%'),
-  borderRadius: wp('6%'),
-  backgroundColor: 'rgba(66, 153, 225, 0.1)', // Using primary color with opacity
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginRight: wp('3%'),
-},
-addButtonTextContainer: {
-  flex: 1,
-},
-addBudgetTitle: {
-  fontSize: wp('4%'),
-  fontWeight: '600',
-  color: COLORS.text.primary,
-  marginBottom: hp('0.5%'),
-},
-addBudgetSubtext: {
-  fontSize: wp('3.5%'),
-  color: COLORS.text.secondary,
-},
-
+  modalContent: {
+    backgroundColor: COLORS.background,
+    borderTopLeftRadius: wp('5%'),
+    borderTopRightRadius: wp('5%'),
+    padding: wp('5%'),
+    paddingBottom: Platform.OS === 'ios' ? hp('8%') : hp('4%'),
+  },
+  modalTitle: {
+    fontSize: wp('5%'),
+    fontWeight: 'bold',
+    marginBottom: hp('2%'),
+    color: COLORS.text.primary,
+  },
+  modalLabel: {
+    fontSize: wp('4%'),
+    marginBottom: hp('1%'),
+    color: COLORS.text.primary,
+  },
+  modalInput: {
+    flex: 1,
+    fontSize: wp('5%'),
+    color: COLORS.text.primary,
+    padding: 0,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: wp('8%'),
+    justifyContent: 'center',
+    marginTop: hp('2%'),
+  },
+  modalButton: {
+    padding: wp('2%'),
+    backgroundColor: COLORS.primary,
+    borderRadius: 5,
+  },
+  modalButtonText: {
+    color: COLORS.text.secondary,
+    fontSize: wp('4%'),
+  },
+  editButton: {
+    marginTop: hp('1%'),
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: wp('1%'),
+    paddingBottom: hp('1%'),
+  },
+  editButtonText: {
+    marginLeft: wp('1%'),
+    color: COLORS.text.primary,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hp('3%'),
+  },
+  modalCloseButton: {
+    padding: wp('2%'),
+  },
+  modalBudgetInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: hp('3%'),
+  },
+  modalIconContainer: {
+    width: wp('12%'),
+    height: wp('12%'),
+    borderRadius: wp('6%'),
+    backgroundColor: COLORS.lightbackground,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: wp('3%'),
+    borderWidth: 2,
+  },
+  modalBudgetTitle: {
+    fontSize: wp('4.5%'),
+    fontWeight: '500',
+    color: COLORS.text.primary,
+  },
+  modalInputContainer: {
+    marginBottom: hp('3%'),
+  },
+  modalInputLabel: {
+    fontSize: wp('3.5%'),
+    color: COLORS.text.secondary,
+    marginBottom: hp('1%'),
+  },
+  modalInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightbackground,
+    borderRadius: wp('3%'),
+    paddingHorizontal: wp('4%'),
+    height: hp('7%'),
+  },
+  currencySymbol: {
+    fontSize: wp('5%'),
+    color: COLORS.text.primary,
+    marginRight: wp('2%'),
+  },
+  modalCurrentInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightbackground,
+    padding: wp('4%'),
+    borderRadius: wp('3%'),
+    marginBottom: hp('3%'),
+  },
+  modalInfoText: {
+    fontSize: wp('3.5%'),
+    color: COLORS.text.secondary,
+  },
+  modalInfoValue: {
+    fontSize: wp('4%'),
+    fontWeight: '500',
+    color: COLORS.text.primary,
+  },
+  modalCancelButton: {
+    backgroundColor: COLORS.lightbackground,
+    paddingVertical: hp('2%'),
+    paddingHorizontal: wp('5%'),
+    borderRadius: wp('6%'),
+  },
+  modalSaveButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: hp('2%'),
+    paddingHorizontal: wp('5%'),
+    borderRadius: wp('6%'),
+  },
+  modalCancelButtonText: {
+    color: COLORS.text.primary,
+    fontSize: wp('4%'),
+    fontWeight: '500',
+  },
+  modalSaveButtonText: {
+    color: '#FFFFFF',
+    fontSize: wp('4%'),
+    fontWeight: '500',
+  },
+  overviewContainer: {
+    backgroundColor: COLORS.lightbackground,
+    margin: wp('4%'),
+    borderRadius: wp('4%'),
+    padding: wp('4%'),
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  overviewHeader: {
+    marginBottom: hp('2%'),
+  },
+  overviewTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: hp('1%'),
+  },
+  overviewLabel: {
+    fontSize: wp('3.5%'),
+    color: COLORS.text.secondary,
+    fontWeight: '500',
+  },
+  infoButton: {
+    padding: wp('1%'),
+  },
+  overviewProgress: {
+    marginBottom: hp('2%'),
+  },
+  overviewProgressText: {
+    fontSize: wp('3.5%'),
+    color: COLORS.text.secondary,
+    marginTop: hp('1%'),
+    textAlign: 'center',
+  },
+  summary: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingTop: hp('2%'),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  divider: {
+    width: 1,
+    height: hp('4%'),
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  summaryLabel: {
+    fontSize: wp('3.5%'),
+    color: COLORS.text.secondary,
+    marginBottom: hp('0.5%'),
+  },
+  summaryAmount: {
+    fontSize: wp('4.5%'),
+    fontWeight: '600',
+  },
+  // New Add Budget Button Styles
+  addBudgetButton: {
+    margin: wp('4%'),
+    marginTop: 0,
+    backgroundColor: COLORS.lightbackground,
+    borderRadius: wp('4%'),
+    overflow: 'hidden',
+  },
+  addButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: wp('4%'),
+  },
+  addIconContainer: {
+    width: wp('12%'),
+    height: wp('12%'),
+    borderRadius: wp('6%'),
+    backgroundColor: 'rgba(66, 153, 225, 0.1)', // Using primary color with opacity
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: wp('3%'),
+  },
+  addButtonTextContainer: {
+    flex: 1,
+  },
+  addBudgetTitle: {
+    fontSize: wp('4%'),
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    marginBottom: hp('0.5%'),
+  },
+  addBudgetSubtext: {
+    fontSize: wp('3.5%'),
+    color: COLORS.text.secondary,
+  },
 });
 
-export default BudgetsScreen; 
+export default BudgetsScreen;

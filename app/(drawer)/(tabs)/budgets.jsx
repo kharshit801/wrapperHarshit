@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput,KeyboardAvoidingView,Platform } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS } from '../../../constants/theme';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
@@ -76,7 +76,9 @@ const BudgetsScreen = () => {
   };
 
   const handleLimitChange = (text) => {
-    setNewLimit(text);
+    // Only allow numeric input
+    const numericValue = text.replace(/[^0-9]/g, '');
+    setNewLimit(numericValue);
   };
 
   const getBudgetStatus = (spent, limit) => {
@@ -196,8 +198,16 @@ const BudgetsScreen = () => {
           </View>
         </TouchableOpacity>
 
-        <Modal visible={modalVisible} transparent={true} animationType="slide">
-          <View style={styles.modalContainer}>
+        <Modal
+          visible={modalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalContainer}
+          >
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Edit Budget Limit</Text>
@@ -261,7 +271,7 @@ const BudgetsScreen = () => {
                 </>
               )}
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       </ScrollView>
     </SafeAreaView>
@@ -411,15 +421,15 @@ const styles = StyleSheet.create({
   
  modalContainer: {
   flex: 1,
-  justifyContent: 'center',
-  alignItems: 'center',
+  justifyContent: 'flex-end',
   backgroundColor: 'rgba(0, 0, 0, 0.5)',
 },
 modalContent: {
-  width: wp('80%'),
-  backgroundColor: 'rgba(0.5, 0, 0, 0.9)',
+  backgroundColor: COLORS.background,
+  borderTopLeftRadius: wp('5%'),
+  borderTopRightRadius: wp('5%'),
   padding: wp('5%'),
-  borderRadius: 10,
+  paddingBottom: Platform.OS === 'ios' ? hp('8%') : hp('4%'),
 },
 modalTitle: {
   fontSize: wp('5%'),
@@ -433,17 +443,16 @@ modalLabel: {
   color: COLORS.text.primary,
 },
 modalInput: {
-  borderWidth: 1,
-  borderColor: COLORS.text.secondary,
-  padding: wp('2%'),
-  borderRadius: 5,
-  marginBottom: hp('2%'),
+  flex: 1,
+  fontSize: wp('5%'),
   color: COLORS.text.primary,
+  padding: 0,
 },
 modalButtons: {
   flexDirection: 'row',
-  gap: wp('2%'),
+  gap: wp('8%'),
   justifyContent: 'center',
+  marginTop: hp('2%'),
 },
 modalButton: {
   padding: wp('2%'),
@@ -466,28 +475,11 @@ editButtonText: {
   marginLeft: wp('1%'),
   color: COLORS.text.primary,
 },
-modalContainer: {
-  flex: 1,
-  justifyContent: 'flex-end', // Makes modal slide up from bottom
-  backgroundColor: 'rgba(0, 0, 0, 0.5)',
-},
-modalContent: {
-  backgroundColor: COLORS.background,
-  borderTopLeftRadius: wp('5%'),
-  borderTopRightRadius: wp('5%'),
-  padding: wp('5%'),
-  paddingBottom: hp('4%'),
-},
 modalHeader: {
   flexDirection: 'row',
   justifyContent: 'space-between',
   alignItems: 'center',
   marginBottom: hp('3%'),
-},
-modalTitle: {
-  fontSize: wp('5%'),
-  fontWeight: '600',
-  color: COLORS.text.primary,
 },
 modalCloseButton: {
   padding: wp('2%'),
@@ -533,12 +525,6 @@ currencySymbol: {
   color: COLORS.text.primary,
   marginRight: wp('2%'),
 },
-modalInput: {
-  flex: 1,
-  fontSize: wp('5%'),
-  color: COLORS.text.primary,
-  padding: 0,
-},
 modalCurrentInfo: {
   flexDirection: 'row',
   justifyContent: 'space-between',
@@ -557,22 +543,17 @@ modalInfoValue: {
   fontWeight: '500',
   color: COLORS.text.primary,
 },
-modalButtons: {
-  flexDirection: 'row',
-  gap: wp('3%'),
-},
-modalButton: {
-  flex: 1,
-  height: hp('6%'),
-  borderRadius: wp('3%'),
-  justifyContent: 'center',
-  alignItems: 'center',
-},
 modalCancelButton: {
   backgroundColor: COLORS.lightbackground,
+  paddingVertical: hp('2%'),
+  paddingHorizontal: wp('5%'),
+  borderRadius: wp('6%'),
 },
 modalSaveButton: {
   backgroundColor: COLORS.primary,
+  paddingVertical: hp('2%'),
+  paddingHorizontal: wp('5%'),
+  borderRadius: wp('6%'),
 },
 modalCancelButtonText: {
   color: COLORS.text.primary,
@@ -583,7 +564,8 @@ modalSaveButtonText: {
   color: '#FFFFFF',
   fontSize: wp('4%'),
   fontWeight: '500',
-},overviewContainer: {
+},
+overviewContainer: {
   backgroundColor: COLORS.lightbackground,
   margin: wp('4%'),
   borderRadius: wp('4%'),
@@ -613,11 +595,6 @@ overviewLabel: {
 },
 infoButton: {
   padding: wp('1%'),
-},
-totalBalanceAmount: {
-  fontSize: wp('7%'),
-  fontWeight: '600',
-  color: COLORS.text.primary,
 },
 overviewProgress: {
   marginBottom: hp('2%'),

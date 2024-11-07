@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput,KeyboardAvoidingView,Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS } from '../../../constants/theme';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
@@ -263,7 +262,10 @@ const BudgetsScreen = () => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.modalButton, styles.modalSaveButton]}
-                      onPress={saveBudgetChange}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        saveBudgetChange();
+                      }}
                     >
                       <Text style={styles.modalSaveButtonText}>Save Changes</Text>
                     </TouchableOpacity>

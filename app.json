@@ -13,6 +13,7 @@
       "backgroundColor": "#fff"
     },
     "ios": {
+      "icon": "./assets/images/logo.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.Kharshit801.wrapper",
       "buildNumber": "1.0.0",
@@ -34,38 +35,42 @@
         ]
       }
     },
-    "android": {
-      "package": "com.Kharshit801.wrapper",
-      "versionCode": 1,
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo.png",
-        "backgroundColor": "#1f1f1f"
-      },
-      "permissions": [
-        "QUERY_ALL_PACKAGES"
-      ],"queries": {
-        "packages": [
-          "com.google.android.apps.nbu.paisa.user",
-          "net.one97.paytm",
-          "com.phonepe.app",
-          "in.org.npci.upiapp"
-        ]
-      },
-      "intentFilters": [
+  "android": {
+  "package": "com.Kharshit801.wrapper",
+  "versionCode": 1,
+  "adaptiveIcon": {
+    "foregroundImage": "./assets/images/logo.png",
+    "backgroundColor": "#1f1f1f"
+  },
+  "permissions": [
+    "QUERY_ALL_PACKAGES"
+  ],
+  "queries": {
+    "packages": [
+      "com.google.android.apps.nbu.paisa.user",
+      "net.one97.paytm",
+      "com.phonepe.app",
+      "in.org.npci.upiapp"
+    ]
+  },
+  "intentFilters": [
+    {
+      "action": "VIEW",
+      "data": [
         {
-          "action": "VIEW",
-          "data": [
-            {
-              "scheme": "upi"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "scheme": "upi"
         }
+      ],
+      "category": [
+        "BROWSABLE",
+        "DEFAULT"
       ]
-    },
+    }
+  ],
+  "notifications": {
+    "icon": "./assets/images/logo.png"
+  }
+},
     "web": {
       "bundler": "metro",
       "output": "static",

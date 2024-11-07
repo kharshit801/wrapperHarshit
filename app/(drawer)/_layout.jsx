@@ -20,11 +20,13 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useGlobalContext } from './../../components/globalProvider';
 import { COLORS } from "../../constants/theme";
+import ExportDataModal from '../../components/ExportDataModal';
+import { set } from "date-fns";
 
 
 const CustomDrawerContent = (props) => {
  
-
+  const [isExportModalVisible, setIsExportModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const { state, dispatch, changeLanguage } = useGlobalContext();
@@ -107,7 +109,7 @@ useEffect(() => {
           <DrawerItem
             label={t('Export Data')}
             icon={() => <Ionicons name="exit" size={wp("6%")} color={"#000000"} />}
-            onPress={() => console.log("Export options pressed")}
+            onPress={() => setIsExportModalVisible(true)}
             labelStyle={{ color: COLORS.background }}
           />
           {/* <DrawerItem
@@ -149,7 +151,12 @@ useEffect(() => {
           </View>
         </View>
       </Modal>
+       <ExportDataModal 
+        visible={isExportModalVisible}
+        onClose={() => setIsExportModalVisible(false)}
+      />
     </>
+    
   );
 };
 

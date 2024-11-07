@@ -17,6 +17,7 @@ import {
     heightPercentageToDP as hp,
 } from "react-native-responsive-screen";
 import { chatWithAI, getInitialAnalysis } from '../utils/aiService';
+import LottieView from 'lottie-react-native';
 
 const ChatInterface = ({ summary, transactions, onClose }) => {
     const [messages, setMessages] = useState([
@@ -144,6 +145,11 @@ const ChatInterface = ({ summary, transactions, onClose }) => {
                     isLoading ? (
                         <View style={styles.loadingContainer}>
                             <ActivityIndicator color={COLORS.secondary} />
+                            {/* <LottieView 
+                            source={require("../assets/animation/thinking.json")}
+                            loop
+                            style={styles.loadingAnimation}
+                            autoPlay/> */}
                         </View>
                     ) : null
                 }
@@ -242,6 +248,10 @@ const styles = StyleSheet.create({
         padding: wp('2%'),
         alignItems: 'center',
     },
+    loadingAnimation:{
+        height:wp(20),
+        width:wp(20)
+    }
 });
 
 export default ChatInterface;

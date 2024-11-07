@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS } from '../../../constants/theme';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
@@ -9,54 +9,14 @@ import { useTranslation } from 'react-i18next';
 import { useBudgetNotifications, BudgetNotificationListener } from '../../../components/Budgetnotification';
 
 const BudgetsScreen = () => {
-  const { state, updateBudget, fetchSpentByCategory } = useGlobalContext();
+  const { state, updateBudget, changeLanguage } = useGlobalContext();
   const { t, i18n } = useTranslation();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [newLimit, setNewLimit] = useState('');
-  const [budgets, setBudgets] = useState([]);
-  const [spentByCategory, setSpentByCategory] = useState({});
+  const [budgets, setBudgets] = useState(state.budgets || []);
 
   const { checkBudgetThresholds, sendBudgetNotification } = useBudgetNotifications();
-
-  // Initialize budgets for all categories
-  useEffect(() => {
-    const initializeBudgets = async () => {
-      try {
-        const allCategories = [
-          ...state.categories.EXPENSE,
-          ...state.categories.TRANSFER
-        ];
-        
-        let currentBudgets = state.budgets || [];
-        
-        // Create default budgets for categories that don't have one
-        const newBudgets = allCategories.map(category => {
-          const existingBudget = currentBudgets.find(b => b.category === category);
-          if (existingBudget) {
-            return existingBudget;
-          }
-          return {
-            id: Date.now().toString() + category,
-            category: category,
-            title: category,
-            limit: 0,
-            icon: getCategoryIcon(category),
-            type: state.categories.EXPENSE.includes(category) ? 'EXPENSE' : 'TRANSFER'
-          };
-        });
-        
-        setBudgets(newBudgets);
-        if (!state.budgets || state.budgets.length === 0) {
-          updateBudget(newBudgets);
-        }
-      } catch (error) {
-        console.error('Error initializing budgets:', error);
-      }
-    };
-
-    initializeBudgets();
-  }, [state.categories]);
 
   useEffect(() => {
     if (state.language && i18n.language !== state.language) {
@@ -74,50 +34,14 @@ const BudgetsScreen = () => {
     checkBudgetThresholds(budgets);
   }, [budgets, checkBudgetThresholds]);
 
-  useEffect(() => {
-    const fetchSpentData = async () => {
-      try {
-        const spentData = await fetchSpentByCategory();
-        const spentMap = spentData.reduce((acc, { category, totalSpent }) => {
-          acc[category] = totalSpent;
-          return acc;
-        }, {});
-        setSpentByCategory(spentMap);
-      } catch (error) {
-        console.error('Error fetching spent by category:', error);
-      }
-    };
-
-    fetchSpentData();
-  }, [fetchSpentByCategory]);
-
-  const getCategoryIcon = (category) => {
-    const iconMap = {
-      'Food & Dining': 'utensils',
-      'Transportation': 'car',
-      'Shopping': 'shopping-bag',
-      'Entertainment': 'film',
-      'Bills & Utilities': 'file-invoice-dollar',
-      'Health & Fitness': 'heartbeat',
-      'Travel': 'plane',
-      'Account Transfer': 'exchange-alt',
-      'Investment Transfer': 'chart-line',
-      'Debt Payment': 'credit-card',
-      'Other': 'dot-circle'
-    };
-    
-    return iconMap[category] || 'dot-circle';
-  };
-
   const totalBudget = budgets.reduce((total, budget) => total + budget.limit, 0);
-  const totalSpent = Object.values(spentByCategory).reduce((total, spent) => total + spent, 0);
+  const totalSpent = budgets.reduce((total, budget) => total + budget.spent, 0);
   const totalRemaining = totalBudget - totalSpent;
   const spentPercentage = (totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0);
 
   const handleNotificationReceived = (notification) => {
-    const { percentage, category, title } = notification.request.content.data;
-    console.log(`Received notification: ${title} in category ${category} at ${percentage}%`);
-    
+    const { budgetId, percentage } = notification.request.content.data;
+    console.log(`Received notification for budget ${budgetId} at ${percentage}%`);
   };
 
   const openEditModal = (budget) => {
@@ -133,12 +57,16 @@ const BudgetsScreen = () => {
         limit: parseInt(newLimit, 10)
       };
 
+      // Update local state first
       const updatedBudgets = budgets.map(budget =>
         budget.id === selectedBudget.id ? updatedBudget : budget
       );
       setBudgets(updatedBudgets);
-      updateBudget(updatedBudgets);
-      sendBudgetNotification(updatedBudget); // Ensure this is called after updating the budget
+
+      // Then update global state
+      updateBudget(updatedBudgets); // Pass the updated budgets to the global provider
+
+      sendBudgetNotification(updatedBudget);
 
       setModalVisible(false);
       setSelectedBudget(null);
@@ -147,6 +75,7 @@ const BudgetsScreen = () => {
   };
 
   const handleLimitChange = (text) => {
+    // Only allow numeric input
     const numericValue = text.replace(/[^0-9]/g, '');
     setNewLimit(numericValue);
   };
@@ -170,9 +99,8 @@ const BudgetsScreen = () => {
   };
 
   const renderBudgetCard = (budget) => {
-    const spent = spentByCategory[budget.category] || 0;
-    const status = getBudgetStatus(spent, budget.limit);
-    const percentageUsed = ((spent / budget.limit) * 100).toFixed(0);
+    const status = getBudgetStatus(budget.spent, budget.limit);
+    const percentageUsed = ((budget.spent / budget.limit) * 100).toFixed(0);
 
     return (
       <TouchableOpacity key={budget.id} style={styles.budgetCard}>
@@ -191,13 +119,13 @@ const BudgetsScreen = () => {
             </View>
             <View style={styles.budgetProgressInfo}>
               <Text style={styles.budgetProgress}>
-                ₹{spent.toLocaleString()} / ₹{budget.limit.toLocaleString()}
+                ₹{budget.spent.toLocaleString()} / ₹{budget.limit.toLocaleString()}
               </Text>
               <Text style={[styles.budgetStatus, { color: status.color }]}>
                 {status.message}
               </Text>
             </View>
-            {renderProgressBar(spent, budget.limit)}
+            {renderProgressBar(budget.spent, budget.limit)}
             <Text style={styles.percentageText}>{percentageUsed}% {t('used')}</Text>
           </View>
         </View>
@@ -242,42 +170,20 @@ const BudgetsScreen = () => {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>{t('Expenses')}</Text>
+        <Text style={styles.sectionTitle}>{t('essentialExpenses')}</Text>
         <View style={styles.budgetsList}>
-          {state.categories && state.categories.EXPENSE ? (
-            state.categories.EXPENSE.map(category => {
-              const budget = budgets.find(b => b.category === category) || {
-                id: Date.now().toString() + category,
-                category: category,
-                title: category,
-                limit: 0,
-                icon: getCategoryIcon(category)
-              };
-              return renderBudgetCard(budget);
-            })
-          ) : (
-            <Text>{t('No expense categories available')}</Text>
-          )}
+          {budgets.filter(b => b.category === 'essential').map(renderBudgetCard)}
         </View>
 
-        <Text style={styles.sectionTitle}>{t('Transfers')}</Text>
+        <Text style={styles.sectionTitle}>{t('transport')}</Text>
         <View style={styles.budgetsList}>
-          {state.categories && state.categories.TRANSFER ? (
-            state.categories.TRANSFER.map(category => {
-              const budget = budgets.find(b => b.category === category) || {
-                id: Date.now().toString() + category,
-                category: category,
-                title: category,
-                limit: 0,
-                icon: getCategoryIcon(category)
-              };
-              return renderBudgetCard(budget);
-            })
-          ) : (
-            <Text>{t('No transfer categories available')}</Text>
-          )}
+          {budgets.filter(b => b.category === 'transport').map(renderBudgetCard)}
         </View>
 
+        <Text style={styles.sectionTitle}>{t('personal')}</Text>
+        <View style={styles.budgetsList}>
+          {budgets.filter(b => b.category === 'personal').map(renderBudgetCard)}
+        </View>
         <TouchableOpacity style={styles.addBudgetButton}>
           <View style={styles.addButtonContent}>
             <View style={styles.addIconContainer}>
@@ -315,7 +221,7 @@ const BudgetsScreen = () => {
               {selectedBudget && (
                 <>
                   <View style={styles.modalBudgetInfo}>
-                    <View style={[styles.modalIconContainer, { borderColor: getBudgetStatus(spentByCategory[selectedBudget.category] || 0, selectedBudget.limit).color }]}>
+                    <View style={[styles.modalIconContainer, { borderColor: getBudgetStatus(selectedBudget.spent, selectedBudget.limit).color }]}>
                       <FontAwesome5
                         name={selectedBudget.icon}
                         size={wp('6%')}
@@ -343,7 +249,7 @@ const BudgetsScreen = () => {
                   <View style={styles.modalCurrentInfo}>
                     <Text style={styles.modalInfoText}>Current Spent</Text>
                     <Text style={styles.modalInfoValue}>
-                      ₹{(spentByCategory[selectedBudget.category] || 0).toLocaleString()}
+                      ₹{selectedBudget.spent.toLocaleString()}
                     </Text>
                   </View>
 
@@ -356,7 +262,10 @@ const BudgetsScreen = () => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.modalButton, styles.modalSaveButton]}
-                      onPress={saveBudgetChange}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        saveBudgetChange();
+                      }}
                     >
                       <Text style={styles.modalSaveButtonText}>Save Changes</Text>
                     </TouchableOpacity>
@@ -370,6 +279,8 @@ const BudgetsScreen = () => {
     </SafeAreaView>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -509,252 +420,256 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: wp('2%')
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  
+ modalContainer: {
+  flex: 1,
+  justifyContent: 'flex-end',
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+},
+modalContent: {
+  backgroundColor: COLORS.background,
+  borderTopLeftRadius: wp('5%'),
+  borderTopRightRadius: wp('5%'),
+  padding: wp('5%'),
+  paddingBottom: Platform.OS === 'ios' ? hp('8%') : hp('4%'),
+},
+modalTitle: {
+  fontSize: wp('5%'),
+  fontWeight: 'bold',
+  marginBottom: hp('2%'),
+  color: COLORS.text.primary,
+},
+modalLabel: {
+  fontSize: wp('4%'),
+  marginBottom: hp('1%'),
+  color: COLORS.text.primary,
+},
+modalInput: {
+  flex: 1,
+  fontSize: wp('5%'),
+  color: COLORS.text.primary,
+  padding: 0,
+},
+modalButtons: {
+  flexDirection: 'row',
+  gap: wp('8%'),
+  justifyContent: 'center',
+  marginTop: hp('2%'),
+},
+modalButton: {
+  padding: wp('2%'),
+  backgroundColor: COLORS.primary,
+  borderRadius: 5,
+},
+modalButtonText: {
+  color: COLORS.text.secondary,
+  fontSize: wp('4%'),
+},
+editButton: {
+  marginTop: hp('1%'),
+  flexDirection: 'row',
+  alignItems: 'center',
+  padding: wp('1%'),
+  paddingBottom: hp('1%'),
+ 
+},
+editButtonText: {
+  marginLeft: wp('1%'),
+  color: COLORS.text.primary,
+},
+modalHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: hp('3%'),
+},
+modalCloseButton: {
+  padding: wp('2%'),
+},
+modalBudgetInfo: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: hp('3%'),
+},
+modalIconContainer: {
+  width: wp('12%'),
+  height: wp('12%'),
+  borderRadius: wp('6%'),
+  backgroundColor: COLORS.lightbackground,
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginRight: wp('3%'),
+  borderWidth: 2,
+},
+modalBudgetTitle: {
+  fontSize: wp('4.5%'),
+  fontWeight: '500',
+  color: COLORS.text.primary,
+},
+modalInputContainer: {
+  marginBottom: hp('3%'),
+},
+modalInputLabel: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+  marginBottom: hp('1%'),
+},
+modalInputWrapper: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: COLORS.lightbackground,
+  borderRadius: wp('3%'),
+  paddingHorizontal: wp('4%'),
+  height: hp('7%'),
+},
+currencySymbol: {
+  fontSize: wp('5%'),
+  color: COLORS.text.primary,
+  marginRight: wp('2%'),
+},
+modalCurrentInfo: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  backgroundColor: COLORS.lightbackground,
+  padding: wp('4%'),
+  borderRadius: wp('3%'),
+  marginBottom: hp('3%'),
+},
+modalInfoText: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+},
+modalInfoValue: {
+  fontSize: wp('4%'),
+  fontWeight: '500',
+  color: COLORS.text.primary,
+},
+modalCancelButton: {
+  backgroundColor: COLORS.lightbackground,
+  paddingVertical: hp('2%'),
+  paddingHorizontal: wp('5%'),
+  borderRadius: wp('6%'),
+},
+modalSaveButton: {
+  backgroundColor: COLORS.primary,
+  paddingVertical: hp('2%'),
+  paddingHorizontal: wp('5%'),
+  borderRadius: wp('6%'),
+},
+modalCancelButtonText: {
+  color: COLORS.text.primary,
+  fontSize: wp('4%'),
+  fontWeight: '500',
+},
+modalSaveButtonText: {
+  color: '#FFFFFF',
+  fontSize: wp('4%'),
+  fontWeight: '500',
+},
+overviewContainer: {
+  backgroundColor: COLORS.lightbackground,
+  margin: wp('4%'),
+  borderRadius: wp('4%'),
+  padding: wp('4%'),
+  shadowColor: "#000",
+  shadowOffset: {
+    width: 0,
+    height: 2,
   },
-  modalContent: {
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: wp('5%'),
-    borderTopRightRadius: wp('5%'),
-    padding: wp('5%'),
-    paddingBottom: Platform.OS === 'ios' ? hp('8%') : hp('4%'),
-  },
-  modalTitle: {
-    fontSize: wp('5%'),
-    fontWeight: 'bold',
-    marginBottom: hp('2%'),
-    color: COLORS.text.primary,
-  },
-  modalLabel: {
-    fontSize: wp('4%'),
-    marginBottom: hp('1%'),
-    color: COLORS.text.primary,
-  },
-  modalInput: {
-    flex: 1,
-    fontSize: wp('5%'),
-    color: COLORS.text.primary,
-    padding: 0,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: wp('8%'),
-    justifyContent: 'center',
-    marginTop: hp('2%'),
-  },
-  modalButton: {
-    padding: wp('2%'),
-    backgroundColor: COLORS.primary,
-    borderRadius: 5,
-  },
-  modalButtonText: {
-    color: COLORS.text.secondary,
-    fontSize: wp('4%'),
-  },
-  editButton: {
-    marginTop: hp('1%'),
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: wp('1%'),
-    paddingBottom: hp('1%'),
-  },
-  editButtonText: {
-    marginLeft: wp('1%'),
-    color: COLORS.text.primary,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: hp('3%'),
-  },
-  modalCloseButton: {
-    padding: wp('2%'),
-  },
-  modalBudgetInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: hp('3%'),
-  },
-  modalIconContainer: {
-    width: wp('12%'),
-    height: wp('12%'),
-    borderRadius: wp('6%'),
-    backgroundColor: COLORS.lightbackground,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: wp('3%'),
-    borderWidth: 2,
-  },
-  modalBudgetTitle: {
-    fontSize: wp('4.5%'),
-    fontWeight: '500',
-    color: COLORS.text.primary,
-  },
-  modalInputContainer: {
-    marginBottom: hp('3%'),
-  },
-  modalInputLabel: {
-    fontSize: wp('3.5%'),
-    color: COLORS.text.secondary,
-    marginBottom: hp('1%'),
-  },
-  modalInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.lightbackground,
-    borderRadius: wp('3%'),
-    paddingHorizontal: wp('4%'),
-    height: hp('7%'),
-  },
-  currencySymbol: {
-    fontSize: wp('5%'),
-    color: COLORS.text.primary,
-    marginRight: wp('2%'),
-  },
-  modalCurrentInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: COLORS.lightbackground,
-    padding: wp('4%'),
-    borderRadius: wp('3%'),
-    marginBottom: hp('3%'),
-  },
-  modalInfoText: {
-    fontSize: wp('3.5%'),
-    color: COLORS.text.secondary,
-  },
-  modalInfoValue: {
-    fontSize: wp('4%'),
-    fontWeight: '500',
-    color: COLORS.text.primary,
-  },
-  modalCancelButton: {
-    backgroundColor: COLORS.lightbackground,
-    paddingVertical: hp('2%'),
-    paddingHorizontal: wp('5%'),
-    borderRadius: wp('6%'),
-  },
-  modalSaveButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: hp('2%'),
-    paddingHorizontal: wp('5%'),
-    borderRadius: wp('6%'),
-  },
-  modalCancelButtonText: {
-    color: COLORS.text.primary,
-    fontSize: wp('4%'),
-    fontWeight: '500',
-  },
-  modalSaveButtonText: {
-    color: '#FFFFFF',
-    fontSize: wp('4%'),
-    fontWeight: '500',
-  },
-  overviewContainer: {
-    backgroundColor: COLORS.lightbackground,
-    margin: wp('4%'),
-    borderRadius: wp('4%'),
-    padding: wp('4%'),
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  overviewHeader: {
-    marginBottom: hp('2%'),
-  },
-  overviewTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: hp('1%'),
-  },
-  overviewLabel: {
-    fontSize: wp('3.5%'),
-    color: COLORS.text.secondary,
-    fontWeight: '500',
-  },
-  infoButton: {
-    padding: wp('1%'),
-  },
-  overviewProgress: {
-    marginBottom: hp('2%'),
-  },
-  overviewProgressText: {
-    fontSize: wp('3.5%'),
-    color: COLORS.text.secondary,
-    marginTop: hp('1%'),
-    textAlign: 'center',
-  },
-  summary: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingTop: hp('2%'),
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  summaryItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  divider: {
-    width: 1,
-    height: hp('4%'),
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  summaryLabel: {
-    fontSize: wp('3.5%'),
-    color: COLORS.text.secondary,
-    marginBottom: hp('0.5%'),
-  },
-  summaryAmount: {
-    fontSize: wp('4.5%'),
-    fontWeight: '600',
-  },
-  // New Add Budget Button Styles
-  addBudgetButton: {
-    margin: wp('4%'),
-    marginTop: 0,
-    backgroundColor: COLORS.lightbackground,
-    borderRadius: wp('4%'),
-    overflow: 'hidden',
-  },
-  addButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: wp('4%'),
-  },
-  addIconContainer: {
-    width: wp('12%'),
-    height: wp('12%'),
-    borderRadius: wp('6%'),
-    backgroundColor: 'rgba(66, 153, 225, 0.1)', // Using primary color with opacity
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: wp('3%'),
-  },
-  addButtonTextContainer: {
-    flex: 1,
-  },
-  addBudgetTitle: {
-    fontSize: wp('4%'),
-    fontWeight: '600',
-    color: COLORS.text.primary,
-    marginBottom: hp('0.5%'),
-  },
-  addBudgetSubtext: {
-    fontSize: wp('3.5%'),
-    color: COLORS.text.secondary,
-  },
+  shadowOpacity: 0.1,
+  shadowRadius: 3.84,
+  elevation: 5,
+},
+overviewHeader: {
+  marginBottom: hp('2%'),
+},
+overviewTitleContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: hp('1%'),
+},
+overviewLabel: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+  fontWeight: '500',
+},
+infoButton: {
+  padding: wp('1%'),
+},
+overviewProgress: {
+  marginBottom: hp('2%'),
+},
+overviewProgressText: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+  marginTop: hp('1%'),
+  textAlign: 'center',
+},
+summary: {
+  flexDirection: 'row',
+  justifyContent: 'space-around',
+  alignItems: 'center',
+  paddingTop: hp('2%'),
+  borderTopWidth: 1,
+  borderTopColor: 'rgba(255, 255, 255, 0.1)',
+},
+summaryItem: {
+  flex: 1,
+  alignItems: 'center',
+},
+divider: {
+  width: 1,
+  height: hp('4%'),
+  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+},
+summaryLabel: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+  marginBottom: hp('0.5%'),
+},
+summaryAmount: {
+  fontSize: wp('4.5%'),
+  fontWeight: '600',
+},
+
+// New Add Budget Button Styles
+addBudgetButton: {
+  margin: wp('4%'),
+  marginTop: 0,
+  backgroundColor: COLORS.lightbackground,
+  borderRadius: wp('4%'),
+  overflow: 'hidden',
+},
+addButtonContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  padding: wp('4%'),
+},
+addIconContainer: {
+  width: wp('12%'),
+  height: wp('12%'),
+  borderRadius: wp('6%'),
+  backgroundColor: 'rgba(66, 153, 225, 0.1)', // Using primary color with opacity
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginRight: wp('3%'),
+},
+addButtonTextContainer: {
+  flex: 1,
+},
+addBudgetTitle: {
+  fontSize: wp('4%'),
+  fontWeight: '600',
+  color: COLORS.text.primary,
+  marginBottom: hp('0.5%'),
+},
+addBudgetSubtext: {
+  fontSize: wp('3.5%'),
+  color: COLORS.text.secondary,
+},
+
 });
 
-export default BudgetsScreen;
+export default BudgetsScreen; 

@@ -12,7 +12,7 @@ export const sendOTPViaSMS = async (phoneNumber, otp) => {
         ? phoneNumber
         : `+91${phoneNumber}`;
   
-      const response = await axios.post('http://172.29.49.198:8080/send-otp', {
+      const response = await axios.post('http://localhost:8000/send-otp', {
         phoneNumber: formattedPhoneNumber,
         otp,
       });

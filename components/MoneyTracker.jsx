@@ -1,8 +1,8 @@
 // MoneyTracker.js
-import TransactionParser from './TransactionParser';
-import ReceiptParser from '../utils/ReceiptParser';
-
-import GeminiTransactionParser from '../utils/GeminiTransactionParser';
+import TransactionParser from "./TransactionParser";
+import ReceiptParser from "../utils/ReceiptParser";
+import LottieView from "lottie-react-native";
+import GeminiTransactionParser from "../utils/GeminiTransactionParser";
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -11,12 +11,13 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
-  Modal,Alert
+  Modal,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../constants/theme";
-import * as ImagePicker from 'expo-image-picker';
-import axios from 'axios';
+import * as ImagePicker from "expo-image-picker";
+import axios from "axios";
 
 import {
   widthPercentageToDP as wp,
@@ -46,11 +47,9 @@ const MoneyTracker = () => {
   const { t, i18n } = useTranslation();
 
   useEffect(() => {
-    
     if (state.language && i18n.language !== state.language) {
       i18n.changeLanguage(state.language);
-    }
-    else{
+    } else {
       i18n.changeLanguage(state.language);
     }
   }, [state.language]);
@@ -62,16 +61,16 @@ const MoneyTracker = () => {
       [
         {
           text: "Camera",
-          onPress: () => pickImage('camera')
+          onPress: () => pickImage("camera"),
         },
         {
           text: "Gallery",
-          onPress: () => pickImage('gallery')
+          onPress: () => pickImage("gallery"),
         },
         {
           text: "Cancel",
-          style: "cancel"
-        }
+          style: "cancel",
+        },
       ]
     );
   };
@@ -81,10 +80,13 @@ const MoneyTracker = () => {
       let permissionResult;
       let result;
 
-      if (source === 'camera') {
+      if (source === "camera") {
         permissionResult = await ImagePicker.requestCameraPermissionsAsync();
         if (!permissionResult.granted) {
-          Alert.alert("Permission Error", "Permission to access camera is required!");
+          Alert.alert(
+            "Permission Error",
+            "Permission to access camera is required!"
+          );
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -94,12 +96,16 @@ const MoneyTracker = () => {
           base64: true,
           aspect: [4, 3],
           maxWidth: 600,
-          maxHeight: 450
+          maxHeight: 450,
         });
       } else {
-        permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        permissionResult =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permissionResult.granted) {
-          Alert.alert("Permission Error", "Permission to access gallery is required!");
+          Alert.alert(
+            "Permission Error",
+            "Permission to access gallery is required!"
+          );
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
@@ -109,7 +115,7 @@ const MoneyTracker = () => {
           base64: true,
           aspect: [4, 3],
           maxWidth: 600,
-          maxHeight: 450
+          maxHeight: 450,
         });
       }
 
@@ -121,12 +127,12 @@ const MoneyTracker = () => {
       Alert.alert("Error", "Failed to capture/select image");
     }
   };
-  
+
   const handleOCR = async (base64Image) => {
     try {
       const parser = new ReceiptParser();
       const details = await parser.parseReceipt(base64Image);
-      
+
       Alert.alert(
         "Receipt Processed",
         `Amount: ₹${details.amount}\nCategory: ${details.category}\nAccount: ${details.account}\n\n${details.notes}`,
@@ -140,19 +146,18 @@ const MoneyTracker = () => {
                 date: new Date().toISOString(),
                 category: details.category,
                 account: details.account,
-                note: details.notes || '',
+                note: details.notes || "",
               };
-              
+
+
               try {
                 // Save to database using onSave
                 await onSave(formattedTransaction);
-                
+
                 // confirmation
-                Alert.alert(
-                  "Success",
-                  "Transaction added successfully!",
-                  [{ text: "OK" }]
-                );
+                Alert.alert("Success", "Transaction added successfully!", [
+                  { text: "OK" },
+                ]);
               } catch (error) {
                 console.error("Error saving transaction:", error);
                 Alert.alert(
@@ -160,26 +165,13 @@ const MoneyTracker = () => {
                   "Failed to save transaction. Please try again."
                 );
               }
-            }
+            },
           },
-          {
-            text: "Edit",
-            onPress: () => {
-              setEditingTransaction({
-                amount: parseFloat(details.amount),
-                type: "EXPENSE",
-                date: new Date().toISOString(),
-                category: details.category,
-                account: details.account,
-                note: details.notes || '', // Changed from notes to note
-              });
-              setShowCalculator(true);
-            }
-          },
+      
           {
             text: "Cancel",
-            style: "cancel"
-          }
+            style: "cancel",
+          },
         ]
       );
     } catch (error) {
@@ -191,38 +183,33 @@ const MoneyTracker = () => {
     }
   };
 
-  const parseExpenseData = (text) => {
-    // Improved regex to find amount - looks for currency symbols and numbers
-    const amountRegex = /(?:₹|RS|INR|Rs)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i;
-    const match = text.match(amountRegex);
-    const amount = match ? match[1].replace(/,/g, '') : "0.00";
-    
-    return {
-      amount: amount,
-      text: text
-    };
-  };
-  
+
   const handleEdit = (transaction) => {
     setEditingTransaction(transaction);
     setShowCalculator(true);
   };
 
-  const handleSaveTransaction = (transactionData) => {
-    if (editingTransaction) {
-      dispatch({
-        type: "EDIT_TRANSACTION",
-        payload: { id: editingTransaction.id, ...transactionData },
-      });
-      setEditingTransaction(null);
-    } else {
-      const newTransaction = {
-        id: Date.now(),
-        ...transactionData,
-      };
-      dispatch({ type: "ADD_TRANSACTION", payload: newTransaction });
+  const handleSaveTransaction = async (transactionData) => {
+    try {
+      await onSave(transactionData);
+      if (editingTransaction) {
+        dispatch({
+          type: "EDIT_TRANSACTION",
+          payload: { id: editingTransaction.id, ...transactionData },
+        });
+        setEditingTransaction(null);
+      } else {
+        const newTransaction = {
+          id: Date.now(),
+          ...transactionData,
+        };
+        dispatch({ type: "ADD_TRANSACTION", payload: newTransaction });
+      }
+      setShowCalculator(false);
+    } catch (error) {
+      console.error("Error saving transaction:", error);
+      Alert.alert("Error", "Failed to save transaction. Please try again.");
     }
-    setShowCalculator(false);
   };
 
   // Filter transactions for current month
@@ -264,7 +251,7 @@ const MoneyTracker = () => {
         backgroundColor="transparent"
         barStyle="light-content"
       />
-      <Header  seachIconShown={true}/>
+      <Header seachIconShown={true} />
 
       {/* Month Navigation */}
       <View style={styles.monthNav}>
@@ -321,12 +308,12 @@ const MoneyTracker = () => {
       <ScrollView style={styles.transactionList}>
         {currentMonthTransactions.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons
-              name="document-text-outline"
-              size={wp("12%")}
-              color={COLORS.text.secondary}
+            <LottieView
+              source={require("../assets/animation/empty.json")}
+              autoPlay
+              loop
+              style={styles.animation}
             />
-            <Text style={styles.emptyStateText}>{t("No Record Text")}</Text>
           </View>
         ) : (
           currentMonthTransactions.map((transaction) => (
@@ -345,10 +332,14 @@ const MoneyTracker = () => {
         onPress={() => setShowCalculator(true)}
         onLongPress={showImageSourceOptions}
       >
-        <Text style={styles.addButtonText}>+</Text>
+        <LottieView
+          source={require('../assets/animation/camera_add.json')}
+          autoPlay
+          loop={false}
+          style={styles.animationAdd}
+        />
       </TouchableOpacity>
 
-  
       <Modal
         visible={showCalculator}
         animationType="slide"
@@ -411,6 +402,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     minHeight: hp("50%"),
   },
+
+  animation:{
+    width:wp(50),
+    height:wp(50)
+  },
+
   emptyStateText: {
     color: COLORS.text.secondary,
     textAlign: "center",
@@ -432,6 +429,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
+  },
+  animationAdd:{
+    width: wp("14%"),
+    height: wp("14%"),
   },
   addButtonText: { fontSize: wp("8%"), color: "#fff", fontWeight: "bold" },
   filterButton: { marginLeft: wp("4%") },

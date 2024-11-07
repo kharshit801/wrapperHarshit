@@ -12,7 +12,7 @@ import {
 import { LineChart, BarChart, PieChart } from "react-native-chart-kit";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../../../constants/theme";
-import ChatInterface from '../../../components/ChatInterface';
+import ChatInterface from "../../../components/ChatInterface";
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -20,15 +20,14 @@ import {
 import Header from "../../../components/commonheader";
 import { useGlobalContext } from "../../../components/globalProvider";
 import ChatGuidePointer from "../../../components/ChatGuidePointet";
-
+import LottieView from "lottie-react-native";
 const Analysis = () => {
   const { state } = useGlobalContext();
   const { summary, transactions, budgets } = state;
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [selectedTimeframe, setSelectedTimeframe] = useState("month"); 
+  const [selectedTimeframe, setSelectedTimeframe] = useState("month");
   const screenWidth = Dimensions.get("window").width;
   const [showSpotlight, setShowSpotlight] = useState(true);
-
 
   // Enhanced data processing
   const processedData = useMemo(() => {
@@ -36,7 +35,7 @@ const Analysis = () => {
     const periods = {
       month: 6,
       quarter: 4,
-      year: 12
+      year: 12,
     };
 
     const getPeriodLabel = (date, timeframe) => {
@@ -64,27 +63,33 @@ const Analysis = () => {
         label: getPeriodLabel(date, selectedTimeframe),
         expenses: 0,
         income: 0,
-        savings: 0
+        savings: 0,
       });
     }
 
     // Process transactions
-    transactions.forEach(transaction => {
+    transactions.forEach((transaction) => {
       const transactionDate = new Date(transaction.date);
-      const monthDiff = (today.getFullYear() - transactionDate.getFullYear()) * 12 +
-        today.getMonth() - transactionDate.getMonth();
+      const monthDiff =
+        (today.getFullYear() - transactionDate.getFullYear()) * 12 +
+        today.getMonth() -
+        transactionDate.getMonth();
 
       if (monthDiff < periodCount) {
         const periodIndex = periodCount - monthDiff - 1;
         if (transaction.type === "EXPENSE") {
           periodData[periodIndex].expenses += transaction.amount;
           totalSpent += transaction.amount;
-          
+
           // Category aggregation
           if (!categoryData[transaction.category]) {
             categoryData[transaction.category] = {
               amount: 0,
-              budget: budgets.find(b => b.title.toLowerCase() === transaction.category.toLowerCase())?.limit || 0
+              budget:
+                budgets.find(
+                  (b) =>
+                    b.title.toLowerCase() === transaction.category.toLowerCase()
+                )?.limit || 0,
             };
           }
           categoryData[transaction.category].amount += transaction.amount;
@@ -95,12 +100,13 @@ const Analysis = () => {
     });
 
     // Calculate savings rate and budget utilization
-    periodData.forEach(period => {
-      period.savings = ((period.income - period.expenses) / period.income * 100) || 0;
+    periodData.forEach((period) => {
+      period.savings =
+        ((period.income - period.expenses) / period.income) * 100 || 0;
     });
 
     // Process budgets
-    budgets.forEach(budget => {
+    budgets.forEach((budget) => {
       totalBudget += budget.limit;
     });
 
@@ -109,44 +115,49 @@ const Analysis = () => {
       categoryData,
       totalSpent,
       totalBudget,
-      budgetUtilization: (totalSpent / totalBudget) * 100
+      budgetUtilization: (totalSpent / totalBudget) * 100,
     };
   }, [transactions, selectedTimeframe, budgets]);
 
   // Prepare chart data
   const spendingTrendData = {
-    labels: processedData.periodData.map(d => d.label),
+    labels: processedData.periodData.map((d) => d.label),
     datasets: [
       {
-        data: processedData.periodData.map(d => d.expenses),
+        data: processedData.periodData.map((d) => d.expenses),
         color: () => COLORS.secondary,
-        strokeWidth: 2
+        strokeWidth: 2,
       },
       {
-        data: processedData.periodData.map(d => d.income),
+        data: processedData.periodData.map((d) => d.income),
         color: () => COLORS.accent,
-        strokeWidth: 2
-      }
+        strokeWidth: 2,
+      },
     ],
-    legend: ["Expenses", "Income"]
+    legend: ["Expenses", "Income"],
   };
 
-
-  const categoryChartData = Object.entries(processedData.categoryData).map(([category, data]) => ({
-    name: category.length > 10 ? category.substring(0, 8) + '...' : category, // Shorter truncation
-    amount: data.amount,
-    color: COLORS.chartColors[Math.floor(Math.random() * COLORS.chartColors.length)],
-    legendFontColor: COLORS.text.primary,
-    legendFontSize: wp("3%"),
-    percentageUsed: (data.amount / data.budget) * 100
-  }));
+  const categoryChartData = Object.entries(processedData.categoryData).map(
+    ([category, data]) => ({
+      name: category.length > 10 ? category.substring(0, 8) + "..." : category, // Shorter truncation
+      amount: data.amount,
+      color:
+        COLORS.chartColors[
+          Math.floor(Math.random() * COLORS.chartColors.length)
+        ],
+      legendFontColor: COLORS.text.primary,
+      legendFontSize: wp("3%"),
+      percentageUsed: (data.amount / data.budget) * 100,
+    })
+  );
   const CategoryLegend = ({ data }) => (
     <View style={styles.legendContainer}>
       {data.map((item, index) => (
         <View key={index} style={styles.legendItem}>
           <View style={[styles.legendColor, { backgroundColor: item.color }]} />
           <Text style={styles.legendText}>
-            {item.name} ({((item.amount / processedData.totalSpent) * 100).toFixed(1)}%)
+            {item.name} (
+            {((item.amount / processedData.totalSpent) * 100).toFixed(1)}%)
           </Text>
         </View>
       ))}
@@ -160,14 +171,16 @@ const Analysis = () => {
           key={timeframe}
           style={[
             styles.timeframeButton,
-            selectedTimeframe === timeframe && styles.timeframeButtonActive
+            selectedTimeframe === timeframe && styles.timeframeButtonActive,
           ]}
           onPress={() => setSelectedTimeframe(timeframe)}
         >
-          <Text style={[
-            styles.timeframeText,
-            selectedTimeframe === timeframe && styles.timeframeTextActive
-          ]}>
+          <Text
+            style={[
+              styles.timeframeText,
+              selectedTimeframe === timeframe && styles.timeframeTextActive,
+            ]}
+          >
             {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
           </Text>
         </TouchableOpacity>
@@ -177,21 +190,29 @@ const Analysis = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-      <Header  seachIconShown={false}/>
-      
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
+      />
+      <Header seachIconShown={false} />
+
       <ScrollView style={styles.content}>
         <TimeframeSelector />
-        
+
         {/* Summary Cards */}
         <View style={styles.summaryContainer}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Total Spent</Text>
-            <Text style={styles.summaryValue}>₹{processedData.totalSpent.toLocaleString()}</Text>
+            <Text style={styles.summaryValue}>
+              ₹{processedData.totalSpent.toLocaleString()}
+            </Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Budget Utilized</Text>
-            <Text style={styles.summaryValue}>{processedData.budgetUtilization.toFixed(1)}%</Text>
+            <Text style={styles.summaryValue}>
+              {processedData.budgetUtilization.toFixed(1)}%
+            </Text>
           </View>
         </View>
 
@@ -199,71 +220,75 @@ const Analysis = () => {
         <View style={styles.chartContainer}>
           <Text style={styles.chartTitle}>Income vs Expenses Trend</Text>
           <LineChart
-          data={spendingTrendData}
-          width={screenWidth - wp("12%")} // Increased padding
-          height={220} // Fixed height instead of percentage
-          yAxisLabel="₹"
-          chartConfig={{
-            backgroundColor: COLORS.primary,
-            backgroundGradientFrom: COLORS.primary,
-            backgroundGradientTo: COLORS.primary,
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
-            propsForDots: {
-              r: "4", // Reduced dot size
-              strokeWidth: "2",
-              stroke: COLORS.primary
-            },
-            // Added proper padding
-            propsForLabels: {
-              fontSize: wp("3%"),
-            },
-            // Added proper spacing
-            spacing: wp("2%"),
-            // Ensure proper Y-axis formatting
-            formatYLabel: (value) => value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
-          }}
-          bezier
-          style={[styles.chart, {
-            marginVertical: hp("1%"),
-            paddingRight: wp("4%"), // Add right padding for y-axis labels
-          }]}
-          // Added props to prevent overflow
-          withInnerLines={true}
-          withOuterLines={true}
-          withVerticalLabels={true}
-          withHorizontalLabels={true}
-          fromZero={true}
-          segments={5}
-        />
+            data={spendingTrendData}
+            width={screenWidth - wp("12%")} // Increased padding
+            height={220} // Fixed height instead of percentage
+            yAxisLabel="₹"
+            chartConfig={{
+              backgroundColor: COLORS.primary,
+              backgroundGradientFrom: COLORS.primary,
+              backgroundGradientTo: COLORS.primary,
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              style: {
+                borderRadius: 16,
+              },
+              propsForDots: {
+                r: "4", // Reduced dot size
+                strokeWidth: "2",
+                stroke: COLORS.primary,
+              },
+              // Added proper padding
+              propsForLabels: {
+                fontSize: wp("3%"),
+              },
+              // Added proper spacing
+              spacing: wp("2%"),
+              // Ensure proper Y-axis formatting
+              formatYLabel: (value) =>
+                value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+            }}
+            bezier
+            style={[
+              styles.chart,
+              {
+                marginVertical: hp("1%"),
+                paddingRight: wp("4%"), // Add right padding for y-axis labels
+              },
+            ]}
+            // Added props to prevent overflow
+            withInnerLines={true}
+            withOuterLines={true}
+            withVerticalLabels={true}
+            withHorizontalLabels={true}
+            fromZero={true}
+            segments={5}
+          />
         </View>
 
         {/* Category Analysis */}
         <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Spending by Category</Text>
-        <View style={styles.pieChartContainer}>
-          <PieChart
-            data={categoryChartData}
-            width={screenWidth - wp("40%")} // Reduced width to make space for legend
-            height={200}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            }}
-            accessor="amount"
-            backgroundColor="transparent"
-            paddingLeft={0}
-            absolute
-            hasLegend={false} // Disable default legend
-            center={[50, 0]} // Adjust center position
-          />
-          <CategoryLegend data={categoryChartData} />
+          <Text style={styles.chartTitle}>Spending by Category</Text>
+          <View style={styles.pieChartContainer}>
+            <PieChart
+              data={categoryChartData}
+              width={screenWidth - wp("40%")} // Reduced width to make space for legend
+              height={200}
+              chartConfig={{
+                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              }}
+              accessor="amount"
+              backgroundColor="transparent"
+              paddingLeft={0}
+              absolute
+              hasLegend={false} // Disable default legend
+              center={[50, 0]} // Adjust center position
+            />
+            <CategoryLegend data={categoryChartData} />
+          </View>
         </View>
-      </View>
 
         {/* Category Budget Progress */}
         <View style={styles.categoryProgressContainer}>
@@ -277,14 +302,17 @@ const Analysis = () => {
                 </Text>
               </View>
               <View style={styles.progressBar}>
-                <View 
+                <View
                   style={[
                     styles.progressFill,
-                    { 
+                    {
                       width: `${Math.min(category.percentageUsed, 100)}%`,
-                      backgroundColor: category.percentageUsed > 100 ? COLORS.danger : COLORS.secondary
-                    }
-                  ]} 
+                      backgroundColor:
+                        category.percentageUsed > 100
+                          ? COLORS.danger
+                          : COLORS.secondary,
+                    },
+                  ]}
                 />
               </View>
             </View>
@@ -298,25 +326,33 @@ const Analysis = () => {
       )}
 
       <TouchableOpacity
-        style={[styles.chatButton,showSpotlight && {
-          elevation: 25,
-          shadowColor: "#fff",
-          shadowOffset: {
-            width: 0,
-            height: 0,
+        style={[
+          styles.chatButton,
+          showSpotlight && {
+            elevation: 25,
+            shadowColor: "#fff",
+            shadowOffset: {
+              width: 0,
+              height: 0,
+            },
+            shadowOpacity: 0.5,
+            shadowRadius: 10,
           },
-          shadowOpacity: 0.5,
-          shadowRadius: 10,
-        }
-      ]}
+        ]}
         onPress={() => setIsChatOpen(true)}
       >
-        <Ionicons name="chatbubble-ellipses-outline" size={wp("6%")} color={COLORS.background} />
+        <LottieView
+          source={require("../../../assets/animation/ai.json")}
+          loop
+          style={{width:wp(20), height:wp(20)}}
+          autoPlay
+        />
+        {/* <Ionicons name="chatbubble-ellipses-outline" size={wp("6%")} color={COLORS.background} /> */}
       </TouchableOpacity>
-     
+
       {isChatOpen && (
         <View style={StyleSheet.absoluteFill}>
-          <ChatInterface 
+          <ChatInterface
             summary={summary}
             transactions={transactions}
             onClose={() => setIsChatOpen(false)}
@@ -400,12 +436,12 @@ const styles = StyleSheet.create({
   },
 
   pieChartContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginTop: hp("2%"),
   },
-  
+
   chartTitle: {
     fontSize: wp("4%"),
     color: COLORS.text.primary,
@@ -452,7 +488,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: hp("3%"),
     right: wp("4%"),
-    backgroundColor: COLORS.secondary,
+    // backgroundColor: COLORS.secondary,
     width: wp("12%"),
     height: wp("12%"),
     borderRadius: wp("6%"),
@@ -470,12 +506,12 @@ const styles = StyleSheet.create({
   legendContainer: {
     flex: 1,
     marginLeft: wp("4%"),
-    justifyContent: 'center',
+    justifyContent: "center",
   },
 
   legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginVertical: hp("0.5%"),
   },
 
@@ -491,7 +527,6 @@ const styles = StyleSheet.create({
     fontSize: wp("3%"),
     flex: 1,
   },
-  
 });
 
 export default Analysis;

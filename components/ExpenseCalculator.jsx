@@ -95,7 +95,7 @@ const DECIMAL_PLACES = 2;
 
 const ExpenseCalculator = ({ onClose, initialData }) => {
   // Track whether we're in edit mode based on initialData presence
-  const isEditMode = Boolean(initialData);
+  var isEditMode = Boolean(initialData);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(initialData?.date ? new Date(initialData.date) : new Date());
@@ -114,7 +114,6 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
   const [isProcessing, setIsProcessing] = useState(false);
   const { onSave } = useGlobalContext();
-
   const validateAmount = useCallback((value) => {
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return false;
@@ -365,7 +364,7 @@ const handleBackspace = useCallback(() => {
   const saveTransaction = useCallback(() => {
     setShowUPIAppsModal(false);
     setPaymentPending(false);
-
+    console.log("Heelo from savetransaction.")
     const numAmount = parseFloat(amount);
     
     if (isNaN(numAmount) || numAmount === 0) {
@@ -377,7 +376,11 @@ const handleBackspace = useCallback(() => {
       Alert.alert('Invalid Amount', 'Amount is invalid');
       return;
     }
-
+    console.log("Ocr state", ocr);
+    
+    if (ocr) {
+      isEditMode = false;
+    }
     const transactionData = {
       id: initialData?.id || Date.now(),
       amount: numAmount,
@@ -389,12 +392,14 @@ const handleBackspace = useCallback(() => {
       lastModified: new Date().toISOString(),
       isUpdate: isEditMode
     };
+   
+    console.log("Transaction Data harshit", transactionData)
 
     onSave(transactionData);
     onClose();
   }, [amount, type, category, account, note, selectedDate, initialData, isEditMode, onSave, onClose, validateAmount]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!account){
       Alert.alert("Error", "Please select an account");
       return;
@@ -403,17 +408,38 @@ const handleBackspace = useCallback(() => {
       Alert.alert('Error', 'Please select a category');
       return;
     }
- 
+   
+      console.log("isEditMode", isEditMode);
+      console.log("type", type);
 
 
     // If we're editing or it's an income transaction, save directly
-    if (isEditMode || type === 'INCOME') {
+    if (isEditMode || type === 'INCOME' ) {
+
+      // try {
+      //   // Save to database using onSave
+      //   await onSave(initialData);
+
+      //   // confirmation
+       
+      //   onClose();
+
+      // } catch (error) {
+      //   console.error("Error saving transaction:", error);
+      //   Alert.alert(
+      //     "Error",
+      //     "Failed to save transaction. Please try again."
+      //   );
+      // }
       saveTransaction();
-    } else {
       // Only show payment modal for new expenses
-      setShowPaymentModal(true);
+    }
+    
+    else{
+      showPaymentModal(true);
     }
   };
+
 
   
   const renderUPIAppsModal = () => (

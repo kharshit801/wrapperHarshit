@@ -271,7 +271,16 @@ export const GlobalProvider = ({ children }) => {
             throw error;
         }
     };
-
+    const onDelete = async (transactionId) => {
+        try {
+            await deleteExpense(transactionId);
+            
+            await loadExpensesFromDB();
+        } catch (error) {
+            console.error('Error deleting transaction:', error);
+            throw error;
+        }
+    };
     const updateExpense = async (expense) => {
         try {
             const result = await db.runAsync(
@@ -442,7 +451,10 @@ export const GlobalProvider = ({ children }) => {
             setHasLaunched,
             updateBudget,
             addBudget,
+            onDelete,
             deleteBudget,
+            deleteExpense,
+            loadExpensesFromDB,
             updateBudgetSpending,
             addExpense,
             updateExpense,

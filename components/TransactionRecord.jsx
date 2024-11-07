@@ -10,10 +10,8 @@ import { format, parseISO } from 'date-fns';
 import { useGlobalContext } from './globalProvider';
 
 const TransactionRecord = ({ transaction, onEdit }) => {
-  const { dispatch } = useGlobalContext();
-  // console.log("Dispatch", dispatch)
-  console.log("Transaction", transaction);
-  // console.log("onEdit", onEdit);
+  const { deleteExpense, loadExpensesFromDB } = useGlobalContext();
+
   const formatDateTime = (dateString) => {
     try {
       if (!dateString) return 'No date';
@@ -25,7 +23,7 @@ const TransactionRecord = ({ transaction, onEdit }) => {
     }
   };
 
-  const handleDelete = (e) => {
+  const handleDelete = async (e) => {
     // Prevent the edit action from triggering when delete is pressed
     e.stopPropagation();
     
@@ -39,8 +37,17 @@ const TransactionRecord = ({ transaction, onEdit }) => {
         },
         {
           text: "Delete",
-          onPress: () => {
-            dispatch({ type: 'DELETE_TRANSACTION', payload: transaction.id });
+          onPress: async () => {
+            try {
+              await deleteExpense(transaction.id);
+              await loadExpensesFromDB(); // Reload transactions after deletion
+            } catch (error) {
+              console.error('Error deleting transaction:', error);
+              Alert.alert(
+                "Error",
+                "Failed to delete transaction. Please try again."
+              );
+            }
           },
           style: "destructive"
         }

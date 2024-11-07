@@ -3,7 +3,7 @@ import { useEffect, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-
+import logo from '../assets/images/logo.png';
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -55,21 +55,30 @@ export const useBudgetNotifications = () => {
         return {
           title: '🚨 Budget Exceeded!',
           body: `Your ${budget.title} budget has been exceeded! (${percentage.toFixed(0)}% used)`,
-          priority: 'high'
+          priority: 'high',
+          sound: 'default',
+          badge: 1,
+          channelId: 'budget-alerts',          
         };
       }
       if (percentage >= 90) {
         return {
           title: '⚠️ Critical Budget Alert',
           body: `Your ${budget.title} budget is nearly depleted! (${percentage.toFixed(0)}% used)`,
-          priority: 'high'
+          priority: 'high',
+          sound: 'default',
+          badge: 1,
+          channelId: 'budget-alerts',
         };
       }
       if (percentage >= 75) {
         return {
           title: '⚡ Budget Warning',
           body: `Your ${budget.title} budget is at ${percentage.toFixed(0)}% used`,
-          priority: 'medium'
+          priority: 'medium',
+          sound: 'default',
+          badge: 1,
+          channelId: 'budget-alerts',
         };
       }
       return null;

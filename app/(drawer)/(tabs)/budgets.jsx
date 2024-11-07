@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Modal, TextInput } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -14,53 +15,34 @@ const BudgetsScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [newLimit, setNewLimit] = useState('');
+  const [budgets, setBudgets] = useState(state.budgets || []);
 
   const { checkBudgetThresholds, sendBudgetNotification } = useBudgetNotifications();
-  
 
   useEffect(() => {
     if (state.language && i18n.language !== state.language) {
       i18n.changeLanguage(state.language);
-    } else {
-      i18n.changeLanguage(state.language);
     }
-  }, [state.language]); 
+  }, [state.language]);
 
-  // see ye notification wala part abhi jo spent data use kar rha hai vo static hai
-  // jab async data milega tab use karna haito bas sate me lake rkahna hoga and jab limit exceed hogi notify ho jayega user
-  // now work on fecthing data fro records to this spent data
-
-
-
-  const [budgets, setBudgets] = useState([
-    { id: 'food', title: 'Food & Grocery', icon: 'shopping-basket', limit: 5000, spent: 5000, budgeted: true, category: 'essential' },
-    { id: 'bills', title: 'Bills', icon: 'file-invoice-dollar', limit: 3000, spent: 3000, budgeted: true, category: 'essential' },
-    { id: 'car', title: 'Car', icon: 'car', limit: 2000, spent: 1800, budgeted: true, category: 'transport' },
-    { id: 'clothing', title: 'Clothing', icon: 'tshirt', limit: 1500, spent: 1200, budgeted: true, category: 'personal' },
-    { id: 'education', title: 'Education', icon: 'graduation-cap', limit: 4000, spent: 3800, budgeted: true, category: 'personal' },
-  ]);
-
-  
-
-
-
-
-  // budget pe nazar rakhenge yaha se
   useEffect(() => {
-    checkBudgetThresholds(state.budgets);
-  }, [state.budgets, checkBudgetThresholds]);
+    if (state.budgets) {
+      setBudgets(state.budgets);
+    }
+  }, [state.budgets]);
 
-  const totalBudget = state.budgets.reduce((total, budget) => total + budget.limit, 0);
-  const totalSpent = state.budgets.reduce((total, budget) => total + budget.spent, 0);
+  useEffect(() => {
+    checkBudgetThresholds(budgets);
+  }, [budgets, checkBudgetThresholds]);
+
+  const totalBudget = budgets.reduce((total, budget) => total + budget.limit, 0);
+  const totalSpent = budgets.reduce((total, budget) => total + budget.spent, 0);
   const totalRemaining = totalBudget - totalSpent;
   const spentPercentage = (totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0);
 
-
-   // Handle incoming notifications
-   const handleNotificationReceived = (notification) => {
+  const handleNotificationReceived = (notification) => {
     const { budgetId, percentage } = notification.request.content.data;
     console.log(`Received notification for budget ${budgetId} at ${percentage}%`);
-    
   };
 
   const openEditModal = (budget) => {
@@ -68,22 +50,38 @@ const BudgetsScreen = () => {
     setNewLimit(budget.limit.toString());
     setModalVisible(true);
   };
- 
+
   const saveBudgetChange = () => {
-    if (selectedBudget) {
+    if (selectedBudget && newLimit) {
       const updatedBudget = {
         ...selectedBudget,
         limit: parseInt(newLimit, 10)
       };
-      updateBudget(updatedBudget);
+
+      // Update local state first
+      const updatedBudgets = budgets.map(budget =>
+        budget.id === selectedBudget.id ? updatedBudget : budget
+      );
+      setBudgets(updatedBudgets);
+
+      // Then update global state
+      updateBudget(updatedBudgets); // Pass the updated budgets to the global provider
+
       sendBudgetNotification(updatedBudget);
+
       setModalVisible(false);
+      setSelectedBudget(null);
+      setNewLimit('');
     }
   };
+
+  const handleLimitChange = (text) => {
+    setNewLimit(text);
+  };
+
   const getBudgetStatus = (spent, limit) => {
     const percentage = (spent / limit) * 100;
     if (percentage >= 90) return { color: '#ff6b6b', message: 'Critical' };
-
     if (percentage >= 75) return { color: '#ffd43b', message: 'Warning' };
     return { color: '#51cf66', message: 'On Track' };
   };
@@ -91,7 +89,7 @@ const BudgetsScreen = () => {
   const renderProgressBar = (spent, limit) => {
     const percentage = Math.min((spent / limit) * 100, 100);
     const status = getBudgetStatus(spent, limit);
-    
+
     return (
       <View style={styles.progressBarContainer}>
         <View style={[styles.progressBar, { width: `${percentage}%`, backgroundColor: status.color }]} />
@@ -109,7 +107,7 @@ const BudgetsScreen = () => {
           <View style={[styles.budgetIconContainer, { borderColor: status.color }]}>
             <FontAwesome5 name={budget.icon} size={wp('6%')} color={COLORS.text.primary} />
           </View>
-          
+
           <View style={styles.budgetDetails}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={styles.budgetType}>{budget.title}</Text>
@@ -134,28 +132,26 @@ const BudgetsScreen = () => {
     );
   };
 
-
   return (
     <SafeAreaView style={styles.container}>
       <BudgetNotificationListener onNotificationReceived={handleNotificationReceived} />
-      <Header  seachIconShown={false}/>
+      <Header seachIconShown={false} />
       <ScrollView style={styles.content}>
         <View style={styles.overviewContainer}>
           <View style={styles.overviewHeader}>
             <View style={styles.overviewTitleContainer}>
               <Text style={styles.overviewLabel}>{t('Monthly Budget Overview')}</Text>
-              
             </View>
             <Text style={styles.totalBalanceAmount}>₹{totalBudget.toLocaleString()}</Text>
           </View>
-          
+
           <View style={styles.overviewProgress}>
             {renderProgressBar(totalSpent, totalBudget)}
             <Text style={styles.overviewProgressText}>
               {spentPercentage.toFixed(0)}% {t('ofTotalBudgetUsed')}
             </Text>
           </View>
-          
+
           <View style={styles.summary}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>{t('spent')}</Text>
@@ -201,72 +197,72 @@ const BudgetsScreen = () => {
         </TouchableOpacity>
 
         <Modal visible={modalVisible} transparent={true} animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Budget Limit</Text>
-              <TouchableOpacity 
-                style={styles.modalCloseButton} 
-                onPress={() => setModalVisible(false)}
-              >
-                <Ionicons name="close" size={wp('6%')} color={COLORS.text.primary} />
-              </TouchableOpacity>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Edit Budget Limit</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Ionicons name="close" size={wp('6%')} color={COLORS.text.primary} />
+                </TouchableOpacity>
+              </View>
+
+              {selectedBudget && (
+                <>
+                  <View style={styles.modalBudgetInfo}>
+                    <View style={[styles.modalIconContainer, { borderColor: getBudgetStatus(selectedBudget.spent, selectedBudget.limit).color }]}>
+                      <FontAwesome5
+                        name={selectedBudget.icon}
+                        size={wp('6%')}
+                        color={COLORS.text.primary}
+                      />
+                    </View>
+                    <Text style={styles.modalBudgetTitle}>{selectedBudget.title}</Text>
+                  </View>
+
+                  <View style={styles.modalInputContainer}>
+                    <Text style={styles.modalInputLabel}>Budget Limit</Text>
+                    <View style={styles.modalInputWrapper}>
+                      <Text style={styles.currencySymbol}>₹</Text>
+                      <TextInput
+                        style={styles.modalInput}
+                        keyboardType="numeric"
+                        value={newLimit}
+                        onChangeText={handleLimitChange}
+                        placeholderTextColor={COLORS.text.secondary}
+                        selectionColor={COLORS.primary}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.modalCurrentInfo}>
+                    <Text style={styles.modalInfoText}>Current Spent</Text>
+                    <Text style={styles.modalInfoValue}>
+                      ₹{selectedBudget.spent.toLocaleString()}
+                    </Text>
+                  </View>
+
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.modalCancelButton]}
+                      onPress={() => setModalVisible(false)}
+                    >
+                      <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.modalSaveButton]}
+                      onPress={saveBudgetChange}
+                    >
+                      <Text style={styles.modalSaveButtonText}>Save Changes</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
             </View>
-
-            {selectedBudget && (
-              <>
-                <View style={styles.modalBudgetInfo}>
-                  <View style={[styles.modalIconContainer, { borderColor: getBudgetStatus(selectedBudget.spent, selectedBudget.limit).color }]}>
-                    <FontAwesome5 
-                      name={selectedBudget.icon} 
-                      size={wp('6%')} 
-                      color={COLORS.text.primary} 
-                    />
-                  </View>
-                  <Text style={styles.modalBudgetTitle}>{selectedBudget.title}</Text>
-                </View>
-
-                <View style={styles.modalInputContainer}>
-                  <Text style={styles.modalInputLabel}>Budget Limit</Text>
-                  <View style={styles.modalInputWrapper}>
-                    <Text style={styles.currencySymbol}>₹</Text>
-                    <TextInput
-                      style={styles.modalInput}
-                      keyboardType="numeric"
-                      value={newLimit}
-                      onChangeText={setNewLimit}
-                      placeholderTextColor={COLORS.text.secondary}
-                      selectionColor={COLORS.primary}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.modalCurrentInfo}>
-                  <Text style={styles.modalInfoText}>Current Spent</Text>
-                  <Text style={styles.modalInfoValue}>
-                    ₹{selectedBudget.spent.toLocaleString()}
-                  </Text>
-                </View>
-
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity 
-                    style={[styles.modalButton, styles.modalCancelButton]} 
-                    onPress={() => setModalVisible(false)}
-                  >
-                    <Text style={styles.modalCancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.modalButton, styles.modalSaveButton]} 
-                    onPress={saveBudgetChange}
-                  >
-                    <Text style={styles.modalSaveButtonText}>Save Changes</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
           </View>
-        </View>
-      </Modal>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -697,4 +693,4 @@ addBudgetSubtext: {
 
 });
 
-export default BudgetsScreen;
+export default BudgetsScreen; 

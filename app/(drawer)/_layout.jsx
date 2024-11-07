@@ -110,12 +110,12 @@ useEffect(() => {
             onPress={() => console.log("Export options pressed")}
             labelStyle={{ color: COLORS.background }}
           />
-          <DrawerItem
+          {/* <DrawerItem
             label={t('Logout')}
             icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#ff6b6b" />}
             onPress={() => console.log("Logout pressed")}
             labelStyle={{ color: "#ff6b6b" }}
-          />
+          /> */}
         </View>
       </DrawerContentScrollView>
 

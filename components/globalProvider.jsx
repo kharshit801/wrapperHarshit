@@ -1,10 +1,12 @@
 import React, { createContext, useReducer, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SQLite from 'expo-sqlite';
-import { format, parseISO, addMonths, subMonths } from 'date-fns';
+import { format, addMonths, subMonths } from 'date-fns';
 import i18next from 'i18next';
 
 const STORAGE_KEY = 'APP_STATE';
+const BUDGETS_STORAGE_KEY = 'APP_BUDGETS';
+const CATEGORY_BUDGETS_KEY = 'CATEGORY_BUDGETS';
 
 const initialState = {
     transactions: [],
@@ -14,13 +16,8 @@ const initialState = {
         { id: 'grocery', title: 'Grocery', icon: 'shopping-basket', type: 'EXPENSE' },
         { id: 'entertainment', title: 'Entertainment', icon: 'film', type: 'EXPENSE' }
     ],
-    budgets: [
-        { id: 'food', title: 'Food & Grocery', icon: 'shopping-basket', limit: 5000, spent: 5000, budgeted: true, category: 'essential' },
-        { id: 'bills', title: 'Bills', icon: 'file-invoice-dollar', limit: 3000, spent: 3000, budgeted: true, category: 'essential' },
-        { id: 'car', title: 'Car', icon: 'car', limit: 2000, spent: 1800, budgeted: true, category: 'transport' },
-        { id: 'clothing', title: 'Clothing', icon: 'tshirt', limit: 1500, spent: 1200, budgeted: true, category: 'personal' },
-        { id: 'education', title: 'Education', icon: 'graduation-cap', limit: 4000, spent: 3800, budgeted: true, category: 'personal' }
-    ],
+    budgets: [],
+    categoryBudgets: {},
     summary: {
         expense: 0,
         income: 0,
@@ -151,38 +148,62 @@ const globalReducer = (state, action) => {
                 )
             };
 
-        case 'UPDATE_BUDGET':
+        case 'UPDATE_CATEGORY_BUDGET':
+            const newCategoryBudgets = {
+                ...state.categoryBudgets,
+                [action.payload.categoryId]: action.payload.limit
+            };
+            // Save updated category budgets to AsyncStorage
+            AsyncStorage.setItem(CATEGORY_BUDGETS_KEY, JSON.stringify(newCategoryBudgets));
             return {
                 ...state,
-                budgets: state.budgets.map(budget =>
-                    budget.id === action.payload.id ? action.payload : budget
-                )
+                categoryBudgets: newCategoryBudgets
+            };
+
+        case 'LOAD_CATEGORY_BUDGETS':
+            return {
+                ...state,
+                categoryBudgets: action.payload
+            };
+
+        case 'UPDATE_BUDGET':
+            const updatedBudgets = action.payload; // Expecting the full updated budgets array
+            AsyncStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(updatedBudgets));
+            return {
+                ...state,
+                budgets: updatedBudgets
             };
 
         case 'ADD_BUDGET':
+            const newBudgets = [...state.budgets, action.payload];
+            AsyncStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(newBudgets));
             return {
                 ...state,
-                budgets: [...state.budgets, action.payload]
+                budgets: newBudgets
             };
 
         case 'DELETE_BUDGET':
+            const remainingBudgets = state.budgets.filter(budget => budget.id !== action.payload);
+            AsyncStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(remainingBudgets));
             return {
                 ...state,
-                budgets: state.budgets.filter(budget => budget.id !== action.payload)
+                budgets: remainingBudgets
             };
 
         case 'UPDATE_BUDGET_SPENDING':
+            const budgetsWithUpdatedSpending = state.budgets.map(budget => {
+                if (budget.id === action.payload.id) {
+                    return {
+                        ...budget,
+                        spent: action.payload.spent
+                    };
+                }
+                return budget;
+            });
+            AsyncStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(budgetsWithUpdatedSpending));
             return {
                 ...state,
-                budgets: state.budgets.map(budget => {
-                    if (budget.id === action.payload.id) {
-                        return {
-                            ...budget,
-                            spent: action.payload.spent
-                        };
-                    }
-                    return budget;
-                })
+                budgets: budgetsWithUpdatedSpending
             };
 
         case 'LOAD_EXPENSES':
@@ -219,6 +240,8 @@ export const GlobalProvider = ({ children }) => {
     useEffect(() => {
         createTable();
         loadExpensesFromDB();
+        loadCategoryBudgets();
+        loadInitialState(); // Load initial state on app start
     }, []);
 
     useEffect(() => {
@@ -231,6 +254,27 @@ export const GlobalProvider = ({ children }) => {
             console.log('Language set in i18next:', state.language);
         }
     }, [state.language]);
+
+    const loadCategoryBudgets = async () => {
+        try {
+            const savedBudgets = await AsyncStorage.getItem(CATEGORY_BUDGETS_KEY);
+            if (savedBudgets) {
+                dispatch({
+                    type: 'LOAD_CATEGORY_BUDGETS',
+                    payload: JSON.parse(savedBudgets)
+                });
+            }
+        } catch (error) {
+            console.error('Error loading category budgets:', error);
+        }
+    };
+
+    const updateCategoryBudget = async (categoryId, limit) => {
+        dispatch({
+            type: 'UPDATE_CATEGORY_BUDGET',
+            payload: { categoryId, limit }
+        });
+    };
 
     const createTable = async () => {
         try {
@@ -271,16 +315,7 @@ export const GlobalProvider = ({ children }) => {
             throw error;
         }
     };
-    const onDelete = async (transactionId) => {
-        try {
-            await deleteExpense(transactionId);
-            
-            await loadExpensesFromDB();
-        } catch (error) {
-            console.error('Error deleting transaction:', error);
-            throw error;
-        }
-    };
+
     const updateExpense = async (expense) => {
         try {
             const result = await db.runAsync(
@@ -451,15 +486,13 @@ export const GlobalProvider = ({ children }) => {
             setHasLaunched,
             updateBudget,
             addBudget,
-            onDelete,
             deleteBudget,
-            deleteExpense,
-            loadExpensesFromDB,
             updateBudgetSpending,
             addExpense,
             updateExpense,
             deleteExpense,
-            fetchExpenses
+            fetchExpenses,
+            updateCategoryBudget
         }}>
             {children}
         </GlobalContext.Provider>

@@ -10,12 +10,32 @@ const CATEGORY_BUDGETS_KEY = 'CATEGORY_BUDGETS';
 
 const initialState = {
     transactions: [],
-    categories: [
-        { id: 'salary', title: 'Salary', icon: 'money-check-alt', type: 'INCOME' },
-        { id: 'freelancing', title: 'Freelancing', icon: 'laptop-code', type: 'INCOME' },
-        { id: 'grocery', title: 'Grocery', icon: 'shopping-basket', type: 'EXPENSE' },
-        { id: 'entertainment', title: 'Entertainment', icon: 'film', type: 'EXPENSE' }
-    ],
+    categories: {
+        EXPENSE: [
+            'Food & Dining',
+            'Transportation', 
+            'Shopping',
+            'Entertainment',
+            'Bills & Utilities',
+            'Health & Fitness',
+            'Travel',
+            'Other'
+        ],
+        INCOME: [
+            'Salary',
+            'Business',
+            'Investments', 
+            'Freelance',
+            'Gift',
+            'Other'
+        ],
+        TRANSFER: [
+            'Account Transfer',
+            'Investment Transfer',
+            'Debt Payment',
+            'Other'
+        ]
+    },
     budgets: [],
     categoryBudgets: {},
     summary: {
@@ -113,40 +133,6 @@ const globalReducer = (state, action) => {
                 };
             }
             return state;
-
-        case 'ADD_CATEGORY':
-            const categoryExists = state.categories.some(
-                cat => cat.title.toLowerCase() === action.payload.title.toLowerCase()
-            );
-            if (categoryExists) {
-                throw new Error('Category already exists');
-            }
-            return {
-                ...state,
-                categories: [...state.categories, action.payload]
-            };
-
-        case 'UPDATE_CATEGORY':
-            return {
-                ...state,
-                categories: state.categories.map(category =>
-                    category.id === action.payload.id ? action.payload : category
-                )
-            };
-
-        case 'DELETE_CATEGORY':
-            const hasTransactions = state.transactions.some(
-                t => t.category.toLowerCase() === action.payload.toLowerCase()
-            );
-            if (hasTransactions) {
-                throw new Error('Category has existing transactions');
-            }
-            return {
-                ...state,
-                categories: state.categories.filter(
-                    category => category.id !== action.payload
-                )
-            };
 
         case 'UPDATE_CATEGORY_BUDGET':
             const newCategoryBudgets = {
@@ -333,6 +319,7 @@ export const GlobalProvider = ({ children }) => {
             const result = await db.runAsync('DELETE FROM expenses WHERE id = ?', [id]);
             return result;
         } catch (error) {
+            console.error('Error deleting transaction:', error);
             throw error;
         }
     };
@@ -474,6 +461,21 @@ export const GlobalProvider = ({ children }) => {
         }
     };
 
+    const fetchSpentByCategory = async () => {
+        try {
+            const result = await db.getAllAsync(`
+                SELECT category, SUM(amount) as totalSpent 
+                FROM expenses 
+                WHERE type = 'EXPENSE' 
+                GROUP BY category
+            `);
+            return result;
+        } catch (error) {
+            console.error('Error fetching spent by category:', error);
+            return [];
+        }
+    };
+
     return (
         <GlobalContext.Provider value={{ 
             state, 
@@ -492,7 +494,9 @@ export const GlobalProvider = ({ children }) => {
             updateExpense,
             deleteExpense,
             fetchExpenses,
-            updateCategoryBudget
+            updateCategoryBudget,
+            fetchSpentByCategory,
+            loadExpensesFromDB // Add loadExpensesFromDB to the context value
         }}>
             {children}
         </GlobalContext.Provider>
@@ -506,3 +510,5 @@ export const useGlobalContext = () => {
     }
     return context;
 };
+
+export default GlobalProvider;

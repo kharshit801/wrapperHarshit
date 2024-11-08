@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { format } from 'date-fns';
 import * as Print from 'expo-print';
+import { Asset } from 'expo-asset';
 
 export const exportService = {
   async exportToJSON(transactions) {
@@ -49,20 +50,20 @@ export const exportService = {
   async exportToPDF(transactions) {
     try {
       const groupedTransactions = groupTransactionsByMonth(transactions);
-      const htmlContent = generatePDFContent(groupedTransactions);
-      
+      const htmlContent = await generatePDFContent(groupedTransactions);
+  
       const { uri } = await Print.printToFileAsync({
         html: htmlContent,
         base64: false
       });
-      
+  
       await shareFile(uri);
     } catch (error) {
       console.error('Error exporting to PDF:', error);
       throw error;
     }
   }
-};
+}  
 
 const shareFile = async (filePath) => {
   if (!(await Sharing.isAvailableAsync())) {
@@ -84,7 +85,28 @@ const groupTransactionsByMonth = (transactions) => {
   }, {});
 };
 
-const generatePDFContent = (groupedTransactions) => {
+const generatePDFContent = async (groupedTransactions) => {
+  // Load both logos
+  const appLogoAsset = Asset.fromModule(require('../assets/images/logoBlack.png'));
+  const teamLogoAsset = Asset.fromModule(require('../assets/images/TeamLogo.png'));
+  
+  await Promise.all([
+    appLogoAsset.downloadAsync(),
+    teamLogoAsset.downloadAsync()
+  ]);
+
+  const [appLogoBase64, teamLogoBase64] = await Promise.all([
+    FileSystem.readAsStringAsync(appLogoAsset.localUri || appLogoAsset.uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    }),
+    FileSystem.readAsStringAsync(teamLogoAsset.localUri || teamLogoAsset.uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    })
+  ]);
+
+  const appLogoUri = `data:image/png;base64,${appLogoBase64}`;
+  const teamLogoUri = `data:image/png;base64,${teamLogoBase64}`;
+
   const monthSections = Object.entries(groupedTransactions)
     .map(([month, transactions]) => {
       const rows = transactions
@@ -146,9 +168,25 @@ const generatePDFContent = (groupedTransactions) => {
           th { background-color: #f5f5f5; }
           .month-section { margin-bottom: 30px; }
           h2 { color: #666; border-bottom: 2px solid #666; padding-bottom: 5px; }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+          }
+          .team-logo img { max-width: 80px; }
+          .app-logo img { max-width: 150px; }
         </style>
       </head>
       <body>
+        <div class="header">
+          <div class="team-logo">
+            <img src="${teamLogoUri}" alt="Team Logo" />
+          </div>
+          <div class="app-logo">
+            <img src="${appLogoUri}" alt="App Logo" />
+          </div>
+        </div>
         <h1>Expense Report</h1>
         ${monthSections}
       </body>

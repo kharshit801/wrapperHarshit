@@ -1,30 +1,118 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+// AccountsScreen.jsx
+import React, { useEffect, useState } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  SafeAreaView, 
+  ScrollView 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../../constants/theme';
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import { 
+  widthPercentageToDP as wp, 
+  heightPercentageToDP as hp 
+} from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
 import Header from '../../../components/commonheader';
+import { useGlobalContext } from '../../../components/globalProvider';
+import { useTranslation } from 'react-i18next';
 
 const AccountsScreen = () => {
   const navigation = useNavigation();
-  
+  const { fetchExpenses, state } = useGlobalContext();
+  const [accountBalances, setAccountBalances] = useState({
+    Card: 0,
+    Cash: 0,
+    Savings: 0
+  });
+  const [summary, setSummary] = useState({
+    totalExpense: 0,
+    totalIncome: 0
+  });
+  const { t } = useTranslation();
+
+  useEffect(() => {
+    loadAccountData();
+  }, [state.transactions]);
+
+  const loadAccountData = async () => {
+    try {
+      const transactions = await fetchExpenses();
+      
+      // Calculate balances for each account
+      const balances = {
+        Card: 0,
+        Cash: 0,
+        Savings: 0
+      };
+      
+      let totalExpense = 0;
+      let totalIncome = 0;
+
+      transactions.forEach(transaction => {
+        const amount = parseFloat(transaction.amount);
+        const account = transaction.account || 'Cash'; // Default to Cash if no account specified
+
+        if (transaction.type === 'EXPENSE') {
+          balances[account] -= amount;
+          totalExpense += amount;
+        } else if (transaction.type === 'INCOME') {
+          balances[account] += amount;
+          totalIncome += amount;
+        } else if (transaction.type === 'TRANSFER') {
+          // Handle transfers between accounts
+          const [fromAccount, toAccount] = transaction.note.split(' to ');
+          if (fromAccount && toAccount) {
+            balances[fromAccount] -= amount;
+            balances[toAccount] += amount;
+          }
+        }
+      });
+
+      setAccountBalances(balances);
+      setSummary({
+        totalExpense,
+        totalIncome
+      });
+    } catch (error) {
+      console.error(t('errorLoadingAccountData'), error);
+    }
+  };
+
   const accounts = [
-    { id: 1, type: 'Card', balance: 0.00, icon: 'card-outline' },
-    { id: 2, type: 'Cash', balance: 0.00, icon: 'cash-outline' },
-    { id: 3, type: 'Savings', balance: 0.00, icon: 'wallet-outline' }
+    { id: 1, type: 'Card', balance: accountBalances.Card, icon: 'card-outline' },
+    { id: 2, type: 'Cash', balance: accountBalances.Cash, icon: 'cash-outline' },
+    { id: 3, type: 'Savings', balance: accountBalances.Savings, icon: 'wallet-outline' }
   ];
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
+  const handleAddAccount = () => {
+    // Navigate to add account screen or show modal
+    // navigation.navigate('AddAccount');
+    console.log(t('addAccountPressed'));
+  };
+
+  const handleAccountPress = (account) => {
+    // Navigate to account details screen
+    // navigation.navigate('AccountDetails', { account });
+    console.log(t('accountPressed', { account: account.type }));
+  };
+
   const renderAccountCard = (account) => (
-    <TouchableOpacity key={account.id} style={styles.accountCard}>
+    <TouchableOpacity 
+      key={account.id} 
+      style={styles.accountCard}
+      onPress={() => handleAccountPress(account)}
+    >
       <View style={styles.accountInfo}>
         <View style={styles.accountIconContainer}>
           <Ionicons name={account.icon} size={wp('6%')} color={COLORS.text.primary} />
         </View>
         <View style={styles.accountDetails}>
-          <Text style={styles.accountType}>{account.type}</Text>
+          <Text style={styles.accountType}>{t(account.type)}</Text>
           <Text style={[
             styles.accountBalance,
             { color: account.balance >= 0 ? '#51cf66' : '#ff6b6b' }
@@ -41,10 +129,10 @@ const AccountsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-        <Header  seachIconShown={false}/>
+      <Header searchIconShown={false}/>
       <ScrollView style={styles.content}>
         <View style={styles.totalBalance}>
-          <Text style={styles.totalBalanceLabel}>All Accounts</Text>
+          <Text style={styles.totalBalanceLabel}>{t('All Accounts')}</Text>
           <Text style={[
             styles.totalBalanceAmount,
             { color: totalBalance >= 0 ? '#51cf66' : '#ff6b6b' }
@@ -54,20 +142,27 @@ const AccountsScreen = () => {
         </View>
         <View style={styles.summary}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>EXPENSE SO FAR</Text>
-            <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>₹000.00</Text>
+            <Text style={styles.summaryLabel}>{t('Expense Amount')}</Text>
+            <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>
+              ₹{summary.totalExpense.toFixed(2)}
+            </Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>INCOME SO FAR</Text>
-            <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>₹0.00</Text>
+            <Text style={styles.summaryLabel}>{t('Income Amount')}</Text>
+            <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>
+              ₹{summary.totalIncome.toFixed(2)}
+            </Text>
           </View>
         </View>
-        <Text style={styles.sectionTitle}>Accounts</Text>
+        <Text style={styles.sectionTitle}>{t('accounts')}</Text>
         <View style={styles.accountsList}>
           {accounts.map(renderAccountCard)}
-          <TouchableOpacity style={styles.addAccountButton}>
+          <TouchableOpacity 
+            style={styles.addAccountButton}
+            onPress={handleAddAccount}
+          >
             <Ionicons name="add-circle-outline" size={wp('6%')} color={COLORS.text.primary} />
-            <Text style={styles.addAccountText}>ADD NEW ACCOUNT</Text>
+            <Text style={styles.addAccountText}>{t('ADD NEW ACCOUNT')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -78,7 +173,6 @@ const AccountsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    
     backgroundColor: COLORS.background,
   },
   content: {

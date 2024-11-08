@@ -12,7 +12,6 @@ import {
   Alert,
   Linking,
   Platform,
-  
   TouchableWithoutFeedback,
   Keyboard
 } from 'react-native';
@@ -28,6 +27,7 @@ import { UPI_APPS, PaymentService } from './PaymentService';
 import * as IntentLauncher from 'expo-intent-launcher';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+// Function to open UPI apps
 function openApp(platformSpecificLink) {
   if (Platform.OS === 'android') {
     // For Android, use package names with expo-intent-launcher
@@ -45,8 +45,6 @@ function openApp(platformSpecificLink) {
     );
   }
 }
-
-
 
 const CATEGORIES = {
   EXPENSE: [
@@ -114,6 +112,12 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
   const [isProcessing, setIsProcessing] = useState(false);
   const { onSave } = useGlobalContext();
+  
+  // Transfer-specific states
+  const [fromAccount, setFromAccount] = useState(initialData?.fromAccount || '');
+  const [toAccount, setToAccount] = useState(initialData?.toAccount || '');
+  const [showFromAccountModal, setShowFromAccountModal] = useState(false);
+  const [showToAccountModal, setShowToAccountModal] = useState(false);
 
   const validateAmount = useCallback((value) => {
     const numValue = parseFloat(value);
@@ -137,7 +141,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     });
   };
 
-   const formatTime = (date) => {
+  const formatTime = (date) => {
     return date.toLocaleTimeString('en-US', { 
       hour: 'numeric',
       minute: 'numeric',
@@ -163,7 +167,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }
   };
 
-  //  date change stuff
+  // Date change handler
   const onDateChange = (event, selectedDate) => {
     const currentDate = selectedDate || selectedDate;
     setShowDatePicker(Platform.OS === 'ios');
@@ -176,7 +180,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }
   };
 
-  //  time change stuff
+  // Time change handler
   const onTimeChange = (event, selectedTime) => {
     const currentTime = selectedTime || selectedTime;
     setShowTimePicker(Platform.OS === 'ios');
@@ -187,6 +191,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       setSelectedDate(newDate);
     }
   };
+
   const handlePayment = (paymentMethod) => {
     setShowPaymentModal(false);
     if (paymentMethod === 'cash') {
@@ -251,7 +256,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }
   };
 
- const handleNumber = useCallback((num) => {
+  const handleNumber = useCallback((num) => {
     if (isProcessing) return;
     setIsProcessing(true);
     
@@ -293,7 +298,6 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }, 100);
   }, [amount, isProcessing]);
 
-
   const calculate = useCallback(() => {
     if (isProcessing) return;
     setIsProcessing(true);
@@ -309,7 +313,9 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
             return;
           }
 
-          const result = eval(expression + amount);
+          // Replace multiplication symbol for evaluation
+          const evalExpression = expression.replace(/×/g, '*');
+          const result = eval(evalExpression + amount);
           
           // Handle invalid results
           if (!isFinite(result)) {
@@ -339,29 +345,29 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }, 100);
   }, [expression, amount, isProcessing, validateAmount]);
 
-// Enhanced clear function
+  // Enhanced clear function
   const handleClear = useCallback(() => {
     setAmount('0');
     setExpression('');
   }, []);
 
-// Enhanced backspace handling
-const handleBackspace = useCallback(() => {
-  if (isProcessing) return;
-  setIsProcessing(true);
-  
-  setTimeout(() => {
-    setAmount(prevAmount => {
-      if (prevAmount.length > 1) {
-        return prevAmount.slice(0, -1);
-      }
-      return '0';
-    });
-    setIsProcessing(false);
-  }, 100);
-}, [isProcessing]);
+  // Enhanced backspace handling
+  const handleBackspace = useCallback(() => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    
+    setTimeout(() => {
+      setAmount(prevAmount => {
+        if (prevAmount.length > 1) {
+          return prevAmount.slice(0, -1);
+        }
+        return '0';
+      });
+      setIsProcessing(false);
+    }, 100);
+  }, [isProcessing]);
 
-  // included second date and time picker
+  // Save Transaction function
   const saveTransaction = useCallback(() => {
     setShowUPIAppsModal(false);
     setPaymentPending(false);
@@ -382,8 +388,9 @@ const handleBackspace = useCallback(() => {
       id: initialData?.id || Date.now(),
       amount: numAmount,
       type,
-      category,
-      account,
+      category: type === 'TRANSFER' ? 'Transfer' : category,
+      account: type === 'TRANSFER' ? fromAccount : account,
+      toAccount: type === 'TRANSFER' ? toAccount : undefined,
       note,
       date: selectedDate.toISOString(),
       lastModified: new Date().toISOString(),
@@ -392,30 +399,137 @@ const handleBackspace = useCallback(() => {
 
     onSave(transactionData);
     onClose();
-  }, [amount, type, category, account, note, selectedDate, initialData, isEditMode, onSave, onClose, validateAmount]);
+  }, [amount, type, category, account, fromAccount, toAccount, note, selectedDate, initialData, isEditMode, onSave, onClose, validateAmount]);
 
   const handleSave = () => {
-    if (!account){
+    if (type === 'TRANSFER') {
+      if (!fromAccount) {
+        Alert.alert("Error", "Please select a source account");
+        return;
+      }
+      if (!toAccount) {
+        Alert.alert("Error", "Please select a destination account");
+        return;
+      }
+      if (fromAccount === toAccount) {
+        Alert.alert("Error", "Source and destination accounts cannot be the same");
+        return;
+      }
+    } else if (!account) {
       Alert.alert("Error", "Please select an account");
       return;
     }
-    if (!category) {
+    
+    if (!category && type !== 'TRANSFER') {
       Alert.alert('Error', 'Please select a category');
       return;
     }
- 
 
-
-    // If we're editing or it's an income transaction, save directly
-    if (isEditMode || type === 'INCOME') {
+    if (isEditMode || type === 'INCOME' || type === 'TRANSFER') {
       saveTransaction();
     } else {
-      // Only show payment modal for new expenses
       setShowPaymentModal(true);
     }
   };
 
-  
+  // Render transfer-specific input fields
+  const renderTransferFields = () => (
+    <>
+      <TouchableOpacity 
+        style={styles.inputField}
+        onPress={() => setShowFromAccountModal(true)}
+      >
+        <Text style={{ color: fromAccount ? COLORS.text.primary : COLORS.text.secondary }}>
+          {fromAccount || 'From Account'}
+        </Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.inputField}
+        onPress={() => setShowToAccountModal(true)}
+      >
+        <Text style={{ color: toAccount ? COLORS.text.primary : COLORS.text.secondary }}>
+          {toAccount || 'To Account'}
+        </Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderDateTime = () => (
+    <View style={dateTimeStyles.dateTimeContainer}>
+      <TouchableOpacity 
+        style={dateTimeStyles.dateTimeButton}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Ionicons 
+          name="calendar-outline" 
+          size={wp('5%')} 
+          color={COLORS.text.primary}
+          style={dateTimeStyles.iconStyle}
+        />
+        <Text style={dateTimeStyles.dateTimeText}>
+          {formatDate(selectedDate)}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={dateTimeStyles.dateTimeButton}
+        onPress={() => setShowTimePicker(true)}
+      >
+        <Ionicons 
+          name="time-outline" 
+          size={wp('5%')} 
+          color={COLORS.text.primary}
+          style={dateTimeStyles.iconStyle}
+        />
+        <Text style={dateTimeStyles.dateTimeText}>
+          {formatTime(selectedDate)}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderKeypad = () => (
+    <View style={styles.keypad}>
+      {[
+        ['7', '8', '9', '+'],
+        ['4', '5', '6', '-'],
+        ['1', '2', '3', '×'],
+        ['0', '.', '=', '/']
+      ].map((row, i) => (
+        <View key={i} style={styles.keypadRow}>
+          {row.map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={[
+                styles.key,
+                ['+', '-', '×', '/', '='].includes(key) && styles.operatorKey
+              ]}
+              onPress={() => {
+                if (isProcessing) return;
+                
+                if (key === '=') {
+                  calculate();
+                } else if (['+', '-', '×', '/'].includes(key)) {
+                  const operator = key === '×' ? '*' : key;
+                  handleOperator(operator);
+                } else if (key === '.') {
+                  if (!amount.includes('.')) {
+                    handleNumber(key);
+                  }
+                } else {
+                  handleNumber(key);
+                }
+              }}
+            >
+              <Text style={styles.keyText}>{key}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+
   const renderUPIAppsModal = () => (
     <Modal
       visible={showUPIAppsModal}
@@ -460,360 +574,92 @@ const handleBackspace = useCallback(() => {
     </Modal>
   );
 
-  // Add these new styles
-  const additionalStyles = StyleSheet.create({
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    loadingText: {
-      marginTop: wp('2%'),
-      color: COLORS.text.primary,
-      fontSize: wp('4%'),
-    },
-    emptyContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: wp('4%'),
-    },
-    emptyText: {
-      color: COLORS.text.secondary,
-      fontSize: wp('4%'),
-    },
-  });
+  return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose}>
+            <Text style={[styles.headerButton, styles.cancelButton]}>CANCEL</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSave}>
+            <Text style={[styles.headerButton, styles.saveButton]}>SAVE</Text>
+          </TouchableOpacity>
+        </View>
 
-  const styles = StyleSheet.create({
-    keyboardAvoidingContainer: {
-      flex: 1,
-    },
-    container: {
-      flex: 1,
-      backgroundColor: COLORS.background
-    },
-    paymentMethod: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: wp('4%'),
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.lightbackground,
-    },
-    paymentMethodText: {
-      fontSize: wp('4%'),
-      color: COLORS.text.primary,
-      marginLeft: wp('3%'),
-    },
-    loadingOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: wp('4%'),
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.lightbackground
-    },
-    headerButton: {
-      fontSize: wp('4%'),
-      fontWeight: '500'
-    },
-    cancelButton: {
-      color: '#ff6b6b'
-    },
-    saveButton: {
-      color: '#51cf66'
-    },
-    typeSelector: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      padding: wp('4%'),
-      gap: wp('4%')
-    },
-    typeButton: {
-      padding: wp('2%'),
-      paddingHorizontal: wp('4%'),
-      borderRadius: wp('4%')
-    },
-    activeType: {
-      backgroundColor: COLORS.primary,
-    },
-    typeText: {
-      color: COLORS.text.primary,
-      fontSize: wp('4%')
-    },
-    activeTypeText: {
-      color: COLORS.whiteBg
-    },
-    inputSection: {
-      padding: wp('4%'),
-      gap: wp('4%')
-    },
-    inputField: {
-      padding: wp('4%'),
-      borderWidth: 1,
-      borderColor: COLORS.lightbackground,
-      borderRadius: wp('2%'),
-      fontSize: wp('4%')
-    },
-    displaySection: {
-      padding: wp('4%'),
-      alignItems: 'flex-end',
-      backgroundColor: COLORS.lightbackground,
-      minHeight: hp('15%')
-    },
-    expression: {
-      fontSize: wp('5%'),
-      color: COLORS.text.secondary
-    },
-    amount: {
-      fontSize: wp('8%'),
-      color: COLORS.text.primary,
-      fontWeight: '500'
-    },
-    keypad: {
-      flex: 1,
-      padding: wp('2%')
-    },
-    keypadRow: {
-      flexDirection: 'row',
-      flex: 1
-    },
-    key: {
-      flex: 1,
-      margin: wp('1%'),
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: COLORS.lightbackground,
-      borderRadius: wp('2%')
-    },
-    operatorKey: {
-      backgroundColor: COLORS.primary + '20'
-    },
-    keyText: {
-      fontSize: wp('6%'),
-      color: COLORS.text.primary
-    },
-    modalContainer: {
-      flex: 1,
-      backgroundColor: COLORS.background,
-    },
-    modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: wp('4%'),
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.lightbackground,
-    },
-    modalTitle: {
-      fontSize: wp('4.5%'),
-      fontWeight: '500',
-      color: COLORS.text.primary,
-    },
-    listItem: {
-      padding: wp('4%'),
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.lightbackground,
-    },
-    listItemText: {
-      fontSize: wp('4%'),
-      color: COLORS.text.primary,
-    },
-    noteInput: {
-      color: COLORS.text.primary,
-      fontSize: wp('4%'),
-      padding: 0,
-    },
-    ...additionalStyles,
-
-
-  });
-  const dateTimeStyles = StyleSheet.create({
-    dateTimeContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingHorizontal: wp('4%'),
-      paddingVertical: wp('3%'),
-      backgroundColor: COLORS.background,
-      borderTopWidth: 1,
-      borderBottomWidth: 1,
-      borderColor: COLORS.lightbackground,
-      marginBottom: wp('2%'),
-    },
-    dateTimeButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: wp('3%'),
-      borderRadius: wp('2%'),
-      backgroundColor: COLORS.lightbackground,
-      minWidth: wp('40%'), // Set minimum width for consistency
-      justifyContent: 'center',
-    },
-    dateTimeText: {
-      color: COLORS.text.primary,
-      fontSize: wp('4%'),
-      marginLeft: wp('2%'),
-      fontWeight: '500',
-    },
-    iconStyle: {
-      marginRight: wp('2%'),
-    }
-  });
- // Updated DateTime section render
- const renderDateTime = () => (
-  <View style={dateTimeStyles.dateTimeContainer}>
-    <TouchableOpacity 
-      style={dateTimeStyles.dateTimeButton}
-      onPress={() => setShowDatePicker(true)}
-    >
-      <Ionicons 
-        name="calendar-outline" 
-        size={wp('5%')} 
-        color={COLORS.text.primary}
-        style={dateTimeStyles.iconStyle}
-      />
-      <Text style={dateTimeStyles.dateTimeText}>
-        {formatDate(selectedDate)}
-      </Text>
-    </TouchableOpacity>
-
-    <TouchableOpacity 
-      style={dateTimeStyles.dateTimeButton}
-      onPress={() => setShowTimePicker(true)}
-    >
-      <Ionicons 
-        name="time-outline" 
-        size={wp('5%')} 
-        color={COLORS.text.primary}
-        style={dateTimeStyles.iconStyle}
-      />
-      <Text style={dateTimeStyles.dateTimeText}>
-        {formatTime(selectedDate)}
-      </Text>
-    </TouchableOpacity>
-  </View>
- );
-
-  const renderKeypad = () => (
-    <View style={styles.keypad}>
-      {[
-        ['7', '8', '9', '+'],
-        ['4', '5', '6', '-'],
-        ['1', '2', '3', '×'],
-        ['0', '.', '=', '/']
-      ].map((row, i) => (
-        <View key={i} style={styles.keypadRow}>
-          {row.map((key) => (
-            <TouchableOpacity
-              key={key}
-              style={[
-                styles.key,
-                ['+', '-', '×', '/', '='].includes(key) && styles.operatorKey
-              ]}
-              onPress={() => {
-                if (isProcessing) return;
-                
-                if (key === '=') {
-                  calculate();
-                } else if (['+', '-', '×', '/'].includes(key)) {
-                  const operator = key === '×' ? '*' : key;
-                  handleOperator(operator);
-                } else if (key === '.') {
-                  if (!amount.includes('.')) {
-                    handleNumber(key);
-                  }
-                } else {
-                  handleNumber(key);
-                }
-              }}
+        {/* Type Selector */}
+        <View style={styles.typeSelector}>
+          {['INCOME', 'EXPENSE', 'TRANSFER'].map((typeOption) => (
+            <TouchableOpacity 
+              key={typeOption}
+              style={[styles.typeButton, type === typeOption && styles.activeType]}
+              onPress={() => setType(typeOption)}
             >
-              <Text style={styles.keyText}>{key}</Text>
+              <Text style={[styles.typeText, type === typeOption && styles.activeTypeText]}>
+                {typeOption}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
-      ))}
-    </View>
-  );
-  return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                  
+        {/* Input Section */}
+        <View style={styles.inputSection}>
+          {type === 'TRANSFER' ? (
+            renderTransferFields()
+          ) : (
+            <>
+              <TouchableOpacity 
+                style={styles.inputField}
+                onPress={() => setShowAccountModal(true)}
+              >
+                <Text style={{ color: account ? COLORS.text.primary : COLORS.text.secondary }}>
+                  {account || 'Account'}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.inputField}
+                onPress={() => setShowCategoryModal(true)}
+              >
+                <Text style={{ color: category ? COLORS.text.primary : COLORS.text.secondary }}>
+                  {category || 'Category'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+          
+          <View style={styles.inputField}>
+            <TextInput
+              placeholder="Add notes"
+              placeholderTextColor={COLORS.text.secondary}
+              style={styles.noteInput}
+              value={note}
+              onChangeText={setNote}
+            />
+          </View>
+        </View>
 
-    <SafeAreaView style={styles.container}>
-  
-    <View style={styles.header}>
-      <TouchableOpacity onPress={onClose}>
-        <Text style={[styles.headerButton, styles.cancelButton]}>CANCEL</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={handleSave}>
-        <Text style={[styles.headerButton, styles.saveButton]}>SAVE</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Date and Time Pickers */}
+        {renderDateTime()}
 
-    <View style={styles.typeSelector}>
-      {['INCOME', 'EXPENSE', 'TRANSFER'].map((typeOption) => (
-        <TouchableOpacity 
-          key={typeOption}
-          style={[styles.typeButton, type === typeOption && styles.activeType]}
-          onPress={() => setType(typeOption)}
-        >
-          <Text style={[styles.typeText, type === typeOption && styles.activeTypeText]}>
-            {typeOption}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
+        {/* Display Section */}
+        <View style={styles.displaySection}>
+          {expression && <Text style={styles.expression}>{expression}</Text>}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.amount}>{amount}</Text>
+            <TouchableOpacity onPress={handleBackspace} style={{ marginLeft: wp('4%') }}>
+              <Ionicons name="backspace-outline" size={wp('6%')} color={COLORS.text.primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-    <View style={styles.inputSection}>
-      <TouchableOpacity 
-        style={styles.inputField}
-        onPress={() => setShowAccountModal(true)}
-      >
-        <Text style={{ color: account ? COLORS.text.primary : COLORS.text.secondary }}>
-          {account || 'Account'}
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.inputField}
-        onPress={() => setShowCategoryModal(true)}
-      >
-        <Text style={{ color: category ? COLORS.text.primary : COLORS.text.secondary }}>
-          {category || 'Category'}
-        </Text>
-      </TouchableOpacity>
-      
-      <View style={styles.inputField}>
-        <TextInput
-          placeholder="Add notes"
-          placeholderTextColor={COLORS.text.secondary}
-          style={styles.noteInput}
-          value={note}
-          onChangeText={setNote}
-        />
-      </View>
-    </View>
-    {renderDateTime()}
-    <View style={styles.displaySection}>
-      {expression && <Text style={styles.expression}>{expression}</Text>}
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={styles.amount}>{amount}</Text>
-        <TouchableOpacity onPress={handleBackspace} style={{ marginLeft: wp('4%') }}>
-          <Ionicons name="backspace-outline" size={wp('6%')} color={COLORS.text.primary} />
-        </TouchableOpacity>
-      </View>
-    </View>
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <SafeAreaView style={styles.container}>
-        {renderKeypad()}
-      </SafeAreaView>
-    </TouchableWithoutFeedback>
-    
-    {/* Date Time Picker Modals */}
-    {showDatePicker && Platform.OS === 'android' && (
+        {/* Keypad */}
+        <View style={styles.keypad}>
+          {renderKeypad()}
+        </View>
+
+        {/* Date Time Picker Modals */}
+        {showDatePicker && Platform.OS === 'android' && (
           <DateTimePicker
             value={selectedDate}
             mode="date"
@@ -881,59 +727,29 @@ const handleBackspace = useCallback(() => {
             </View>
           </Modal>
         )}
-      {/* Category Selection Modal */}
-      <Modal
-        visible={showCategoryModal}
-        animationType="slide"
-        transparent={false}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Category</Text>
-            <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-              <Text style={{ color: COLORS.primary }}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={CATEGORIES[type]}
-            keyExtractor={(item) => item}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                style={styles.listItem}
-                onPress={() => {
-                  setCategory(item);
-                  setShowCategoryModal(false);
-                }}
-              >
-                <Text style={styles.listItemText}>{item}</Text>
-              </TouchableOpacity>
-            )}
-          />
-        </SafeAreaView>
-      </Modal>
 
-      {/* Account Selection Modal */}
-      <Modal
-        visible={showAccountModal}
-        animationType="slide"
-        transparent={false}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Account</Text>
-            <TouchableOpacity onPress={() => setShowAccountModal(false)}>
-              <Text style={{ color: COLORS.primary }}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-              data={ACCOUNTS}
+        {/* Category Selection Modal */}
+        <Modal
+          visible={showCategoryModal}
+          animationType="slide"
+          transparent={false}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                <Text style={{ color: COLORS.primary }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={CATEGORIES[type]}
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
                 <TouchableOpacity 
                   style={styles.listItem}
                   onPress={() => {
-                    setAccount(item);
-                    setShowAccountModal(false);
+                    setCategory(item);
+                    setShowCategoryModal(false);
                   }}
                 >
                   <Text style={styles.listItemText}>{item}</Text>
@@ -942,92 +758,377 @@ const handleBackspace = useCallback(() => {
             />
           </SafeAreaView>
         </Modal>
-         {/* Payment Method Selection Modal */}
-      <Modal
-        visible={showPaymentModal}
-        animationType="slide"
-        transparent={false}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Payment Method</Text>
-            <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
-              <Text style={{ color: COLORS.primary }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={PAYMENT_METHODS}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                style={styles.listItem}
-                onPress={() => handlePayment(item.id)}
-              >
-                <Text style={styles.listItemText}>{item.name}</Text>
+
+        {/* Account Selection Modal */}
+        <Modal
+          visible={showAccountModal}
+          animationType="slide"
+          transparent={false}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Account</Text>
+              <TouchableOpacity onPress={() => setShowAccountModal(false)}>
+                <Text style={{ color: COLORS.primary }}>Done</Text>
               </TouchableOpacity>
-            )}
-          />
-        </SafeAreaView>
-      </Modal>
+            </View>
+            <FlatList
+                data={ACCOUNTS}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) => (
+                  <TouchableOpacity 
+                    style={styles.listItem}
+                    onPress={() => {
+                      setAccount(item);
+                      setShowAccountModal(false);
+                    }}
+                  >
+                    <Text style={styles.listItemText}>{item}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </SafeAreaView>
+          </Modal>
 
-      {/* UPI Apps Selection Modal */}
-      {/* <Modal
-        visible={showUPIAppsModal}
-        animationType="slide"
-        transparent={false}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select UPI App</Text>
-            <TouchableOpacity onPress={() => {
-              setShowUPIAppsModal(false);
-              setShowPaymentModal(true);
-            }}>
-              <Text style={{ color: COLORS.primary }}>Back</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={availableUPIApps}
-            keyExtractor={(item) => item.id || item}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                style={styles.listItem}
-                onPress={() => handleUPIApp(item)}
-              >
-                <Text style={styles.listItemText}>{item.name || item}</Text>
+        {/* From Account Selection Modal */}
+        <Modal
+          visible={showFromAccountModal}
+          animationType="slide"
+          transparent={false}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Source Account</Text>
+              <TouchableOpacity onPress={() => setShowFromAccountModal(false)}>
+                <Text style={{ color: COLORS.primary }}>Done</Text>
               </TouchableOpacity>
-            )}
-          />
-        </SafeAreaView>
-      </Modal> */}
-            {renderUPIAppsModal()}
+            </View>
+            <FlatList
+              data={ACCOUNTS}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.listItem}
+                  onPress={() => {
+                    setFromAccount(item);
+                    setShowFromAccountModal(false);
+                  }}
+                >
+                  <Text style={styles.listItemText}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </SafeAreaView>
+        </Modal>
 
+        {/* To Account Selection Modal */}
+        <Modal
+          visible={showToAccountModal}
+          animationType="slide"
+          transparent={false}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Destination Account</Text>
+              <TouchableOpacity onPress={() => setShowToAccountModal(false)}>
+                <Text style={{ color: COLORS.primary }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={ACCOUNTS.filter(acc => acc !== fromAccount)}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.listItem}
+                  onPress={() => {
+                    setToAccount(item);
+                    setShowToAccountModal(false);
+                  }}
+                >
+                  <Text style={styles.listItemText}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </SafeAreaView>
+        </Modal>
 
-      {/* Loading Overlay for Payment Processing */}
-      {paymentPending && (
-        <View style={[StyleSheet.absoluteFill, {
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'center',
-          alignItems: 'center'
-        }]}>
-          <View style={{
-            backgroundColor: COLORS.background,
-            padding: wp('5%'),
-            borderRadius: wp('2%'),
+        {/* Payment Method Selection Modal */}
+        <Modal
+          visible={showPaymentModal}
+          animationType="slide"
+          transparent={false}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Payment Method</Text>
+              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+                <Text style={{ color: COLORS.primary }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={PAYMENT_METHODS}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.listItem}
+                  onPress={() => handlePayment(item.id)}
+                >
+                  <Text style={styles.listItemText}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </SafeAreaView>
+        </Modal>
+
+        {/* UPI Apps Selection Modal */}
+        {renderUPIAppsModal()}
+
+        {/* Loading Overlay for Payment Processing */}
+        {paymentPending && (
+          <View style={[StyleSheet.absoluteFill, {
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
             alignItems: 'center'
-          }}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={[styles.modalTitle, { marginTop: wp('2%') }]}>
-              Processing Payment
-            </Text>
+          }]}>
+            <View style={{
+              backgroundColor: COLORS.background,
+              padding: wp('5%'),
+              borderRadius: wp('2%'),
+              alignItems: 'center'
+            }}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={[styles.modalTitle, { marginTop: wp('2%') }]}>
+                Processing Payment
+              </Text>
+            </View>
           </View>
-        </View>
-      )}
+        )}
 
-    </SafeAreaView>
-    
+      </SafeAreaView>
     </TouchableWithoutFeedback>
+  );
+};
 
-    );
+export default ExpenseCalculator;
+
+// Styles
+const additionalStyles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: wp('2%'),
+    color: COLORS.text.primary,
+    fontSize: wp('4%'),
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: wp('4%'),
+  },
+  emptyText: {
+    color: COLORS.text.secondary,
+    fontSize: wp('4%'),
+  },
+});
+
+const dateTimeStyles = StyleSheet.create({
+  dateTimeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: wp('4%'),
+    paddingVertical: wp('3%'),
+    backgroundColor: COLORS.background,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: COLORS.lightbackground,
+    marginBottom: wp('2%'),
+  },
+  dateTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: wp('3%'),
+    borderRadius: wp('2%'),
+    backgroundColor: COLORS.lightbackground,
+    minWidth: wp('40%'), // Set minimum width for consistency
+    justifyContent: 'center',
+  },
+  dateTimeText: {
+    color: COLORS.text.primary,
+    fontSize: wp('4%'),
+    marginLeft: wp('2%'),
+    fontWeight: '500',
+  },
+  iconStyle: {
+    marginRight: wp('2%'),
   }
-  export default ExpenseCalculator;    
+});
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background
+  },
+  paymentMethod: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: wp('4%'),
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightbackground,
+  },
+  paymentMethodText: {
+    fontSize: wp('4%'),
+    color: COLORS.text.primary,
+    marginLeft: wp('3%'),
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: wp('4%'),
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightbackground
+  },
+  headerButton: {
+    fontSize: wp('4%'),
+    fontWeight: '500'
+  },
+  cancelButton: {
+    color: '#ff6b6b'
+  },
+  saveButton: {
+    color: '#51cf66'
+  },
+  typeSelector: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    padding: wp('4%'),
+    gap: wp('4%')
+  },
+  typeButton: {
+    padding: wp('2%'),
+    paddingHorizontal: wp('4%'),
+    borderRadius: wp('4%')
+  },
+  activeType: {
+    backgroundColor: COLORS.primary,
+  },
+  typeText: {
+    color: COLORS.text.primary,
+    fontSize: wp('4%')
+  },
+  activeTypeText: {
+    color: COLORS.whiteBg
+  },
+  inputSection: {
+    padding: wp('4%'),
+    gap: wp('4%')
+  },
+  inputField: {
+    padding: wp('4%'),
+    borderWidth: 1,
+    borderColor: COLORS.lightbackground,
+    borderRadius: wp('2%'),
+    fontSize: wp('4%'),
+    justifyContent: 'center'
+  },
+  displaySection: {
+    padding: wp('4%'),
+    alignItems: 'flex-end',
+    backgroundColor: COLORS.lightbackground,
+    minHeight: hp('15%')
+  },
+  expression: {
+    fontSize: wp('5%'),
+    color: COLORS.text.secondary
+  },
+  amount: {
+    fontSize: wp('8%'),
+    color: COLORS.text.primary,
+    fontWeight: '500'
+  },
+  keypad: {
+    flex: 1,
+    padding: wp('2%')
+  },
+  keypadRow: {
+    flexDirection: 'row',
+    flex: 1
+  },
+  key: {
+    flex: 1,
+    margin: wp('1%'),
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightbackground,
+    borderRadius: wp('2%')
+  },
+  operatorKey: {
+    backgroundColor: COLORS.primary + '20'
+  },
+  keyText: {
+    fontSize: wp('6%'),
+    color: COLORS.text.primary
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: wp('4%'),
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightbackground,
+  },
+  modalTitle: {
+    fontSize: wp('4.5%'),
+    fontWeight: '500',
+    color: COLORS.text.primary,
+  },
+  listItem: {
+    padding: wp('4%'),
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightbackground,
+  },
+  listItemText: {
+    fontSize: wp('4%'),
+    color: COLORS.text.primary,
+  },
+  noteInput: {
+    color: COLORS.text.primary,
+    fontSize: wp('4%'),
+    padding: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: wp('2%'),
+    color: COLORS.text.primary,
+    fontSize: wp('4%'),
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: wp('4%'),
+  },
+  emptyText: {
+    color: COLORS.text.secondary,
+    fontSize: wp('4%'),
+  },
+  ...additionalStyles,
+});

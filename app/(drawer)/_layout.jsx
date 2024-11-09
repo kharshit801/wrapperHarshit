@@ -8,6 +8,7 @@ import {
   StatusBar,
   Modal,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { DrawerContentScrollView, DrawerItem } from "@react-navigation/drawer";
 import { Drawer } from "expo-router/drawer";
@@ -17,6 +18,7 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from "react-native-responsive-screen";
+import { currencies, setDefaultCurrency, fetchExchangeRates } from '../../utils/currencyService';
 import { useTranslation } from 'react-i18next';
 import { useGlobalContext } from './../../components/globalProvider';
 import { COLORS } from "../../constants/theme";
@@ -24,22 +26,47 @@ import ExportDataModal from '../../components/ExportDataModal';
 import { set } from "date-fns";
 import { backupService } from '../../components/backup';
 import { useRouter } from "expo-router";
-import * as ImagePicker from 'expo-image-picker'; // Importing ImagePicker for QR scanning
+import * as ImagePicker from 'expo-image-picker';
 import { ExpoCamera } from 'expo-camera';
-
-
+import { Alert } from 'react-native';
+import CurrencySelector from "../../components/CurrencySettings";
 const CustomDrawerContent = (props) => {
-
   const router = useRouter();
- 
   const [isExportModalVisible, setIsExportModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isCurrencyModalVisible, setIsCurrencyModalVisible] = useState(false);
   const { state, dispatch, changeLanguage } = useGlobalContext();
   const { t, i18n } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const { loadExpensesFromDB } = useGlobalContext();
+
+  const handleCurrencyChange = async (currencyCode) => {
+    setLoading(true);
+    try {
+      await setDefaultCurrency(currencyCode);
+      dispatch({ type: 'SET_DEFAULT_CURRENCY', payload: currencyCode });
+      
+      const rates = await fetchExchangeRates();
+      if (rates) {
+        dispatch({
+          type: 'UPDATE_EXCHANGE_RATES',
+          payload: { rates }
+        });
+      }
+
+      
+    } catch (error) {
+      Alert.alert(
+        t('Error'),
+        t('Failed to update default currency')
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleBackup = async () => {
     try {
@@ -60,10 +87,9 @@ const CustomDrawerContent = (props) => {
   const handleScanQR = async () => {
     const { status } = await ExpoCamera.requestCameraPermissionsAsync();
     if (status === 'granted') {
-      // Logic to open camera for scanning QR codes
       const { type } = await ExpoCamera.launchCameraAsync();
       if (type === 'success') {
-        console.log('Camera opened for QR scanning!'); // Placeholder for actual scanner
+        console.log('Camera opened for QR scanning!');
       }
     } else {
       alert('Camera permission is required to scan QR codes.');
@@ -146,12 +172,19 @@ const CustomDrawerContent = (props) => {
             onPress={() => setIsExportModalVisible(true)}
             labelStyle={{ color: COLORS.background }}
           />
+           <DrawerItem
+                label={t('Currency Settings')}
+                icon={() => <MaterialIcons name="money" size={wp("6%")} color="#1f1f1f" />}
+                onPress={() => setIsCurrencyModalVisible(true)}
+                labelStyle={{ color: COLORS.background }}
+            />
           <DrawerItem
             label={t('Backup')}
             icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#ff6b6b" />}
             onPress={() => router.push('/signup')}
             labelStyle={{ color: "#ff6b6b" }}
           />
+           
         </View>
       </DrawerContentScrollView>
 
@@ -185,6 +218,16 @@ const CustomDrawerContent = (props) => {
           </View>
         </View>
       </Modal>
+
+      <CurrencySelector
+  visible={isCurrencyModalVisible}
+  onClose={() => setIsCurrencyModalVisible(false)}
+  onSelectCurrency={handleCurrencyChange}
+  currentCurrency={state.defaultCurrency}
+  loading={loading}
+  t={t}
+/>
+
       <ExportDataModal 
         visible={isExportModalVisible}
         onClose={() => setIsExportModalVisible(false)}
@@ -295,5 +338,38 @@ const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     fontSize: wp("4%"),
+  },
+  currencyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: wp('2.5%'),
+  },
+  currencyButton: {
+    width: wp('30%'),
+    padding: wp('4%'),
+    borderRadius: wp('2%'),
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    marginBottom: hp('1.2%'),
+  },
+  selectedCurrency: {
+    backgroundColor: COLORS.primary,
+  },
+  currencySymbol: {
+    fontSize: wp('6%'),
+    marginBottom: hp('0.5%'),
+  },
+  currencyCode: {
+    fontSize: wp('4%'),
+  },
+  selectedText: {
+    color: '#fff',
+  },
+  note: {
+    marginTop: hp('2.5%'),
+    color: '#666',
+    textAlign: 'center',
+    fontSize: wp('3.5%'),
   },
 });

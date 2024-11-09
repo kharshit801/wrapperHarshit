@@ -363,7 +363,7 @@ const Analysis = () => {
         <LottieView
           source={require("../../../assets/animation/ai.json")}
           loop
-          style={{ width: wp("12%"), height: wp("12%") }}
+          style={{ width: wp("16%"), height: wp("16%") }}
           autoPlay
         />
       </TouchableOpacity>

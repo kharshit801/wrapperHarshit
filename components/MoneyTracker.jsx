@@ -12,7 +12,7 @@ import {
   Alert,
   TextInput,
   ScrollView,
-  Image, // Added Image import
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../constants/theme";
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
 
   headerContainer: {
-    backgroundColor: COLORS.lightbackground,
+    backgroundColor: COLORS.backgroundColor,
   },
   header: {
     flexDirection: "row",
@@ -486,10 +486,10 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: hp("5%"),
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.lightbackground,
     borderRadius: wp("2%"),
     paddingHorizontal: wp("2%"),
-    color: COLORS.text.primary,
+    color: COLORS.lightbackground,
   },
 
   monthNav: {

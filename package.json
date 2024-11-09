@@ -26,8 +26,8 @@
     "date-fns": "^4.1.0",
     "eas": "^0.1.0",
     "expo": "~51.0.28",
-    "expo-barcode-scanner": "~13.0.1",
     "expo-asset": "^10.0.10",
+    "expo-barcode-scanner": "~13.0.1",
     "expo-build-properties": "^0.12.5",
     "expo-camera": "^15.0.16",
     "expo-constants": "~16.0.2",
@@ -62,6 +62,7 @@
     "react-native-responsive-screen": "^1.4.2",
     "react-native-safe-area-context": "4.10.5",
     "react-native-screens": "3.31.1",
+    "react-native-webview": "^13.12.3",
     "twilio": "^5.3.5",
     "typescript": "~5.3.3"
   },

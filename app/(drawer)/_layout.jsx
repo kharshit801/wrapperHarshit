@@ -161,7 +161,7 @@ const CustomDrawerContent = (props) => {
             labelStyle={{ color: COLORS.background }}
           />
           <DrawerItem
-            label={t('Scan QR')}
+            label={t('ScanQR')}
             icon={() => <MaterialIcons name="qr-code-scanner" size={wp("6%")} color={"#000000"} />}
             onPress={handleScanQR}
             labelStyle={{ color: COLORS.background }}
@@ -173,18 +173,17 @@ const CustomDrawerContent = (props) => {
             labelStyle={{ color: COLORS.background }}
           />
            <DrawerItem
-                label={t('Currency Settings')}
-                icon={() => <MaterialIcons name="money" size={wp("6%")} color="#1f1f1f" />}
-                onPress={() => setIsCurrencyModalVisible(true)}
-                labelStyle={{ color: COLORS.background }}
-            />
+              label={t('CurrencySettings')}
+              icon={() => <MaterialIcons name="money" size={wp("6%")} color="#1f1f1f" />}
+              onPress={() => setIsCurrencyModalVisible(true)}
+              labelStyle={{ color: COLORS.background }}
+            />      
           <DrawerItem
             label={t('Backup')}
             icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#ff6b6b" />}
             onPress={() => router.push('/signup')}
             labelStyle={{ color: "#ff6b6b" }}
           />
-           
         </View>
       </DrawerContentScrollView>
 

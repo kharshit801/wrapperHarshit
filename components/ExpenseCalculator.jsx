@@ -1,3 +1,4 @@
+// ExpenseCalculator.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
@@ -26,6 +27,7 @@ import { useNavigation } from '@react-navigation/native';
 import { UPI_APPS, PaymentService } from './PaymentService';
 import * as IntentLauncher from 'expo-intent-launcher';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useTranslation } from 'react-i18next'; // Import useTranslation
 
 // Function to open UPI apps
 function openApp(platformSpecificLink) {
@@ -92,6 +94,7 @@ const MAX_DIGITS = 9;
 const DECIMAL_PLACES = 2;
 
 const ExpenseCalculator = ({ onClose, initialData }) => {
+  const { t } = useTranslation(); // Initialize t function
   const isEditMode = Boolean(initialData);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -154,9 +157,9 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       if (!initialData.amount || !initialData.currency) {
         console.error('initialData is missing required fields:', initialData);
         Alert.alert(
-          'Invalid Data',
-          'The transaction data is incomplete. Please try again.',
-          [{ text: 'OK', onPress: onClose }]
+          t('invalidDataTitle'),
+          t('invalidDataMessage'),
+          [{ text: t('ok'), onPress: onClose }]
         );
         return;
       }
@@ -183,9 +186,9 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
           console.warn(`Conversion rates are missing. Using original amount.`);
           setAmount(parseFloat(initialData.amount).toFixed(DECIMAL_PLACES));
           Alert.alert(
-            'Currency Conversion Unavailable',
-            `Conversion rates are unavailable. Amount will be displayed in ${initialData.currency}.`,
-            [{ text: 'OK' }]
+            t('currencyConversionUnavailableTitle'),
+            t('currencyConversionUnavailableMessage', { currency: initialData.currency }),
+            [{ text: t('ok') }]
           );
         }
       } else {
@@ -193,10 +196,10 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         setAmount(parseFloat(initialData.amount).toFixed(DECIMAL_PLACES));
       }
     }
-  }, [isEditMode, initialData, state?.defaultCurrency, state?.conversionRates, onClose]);
+  }, [isEditMode, initialData, state?.defaultCurrency, state?.conversionRates, onClose, t]);
 
   const formatDate = (date) => {
-    return date.toLocaleDateString('en-US', { 
+    return date.toLocaleDateString(t('locale'), { 
       month: 'short',
       day: 'numeric',
       year: 'numeric'
@@ -204,7 +207,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   };
 
   const formatTime = (date) => {
-    return date.toLocaleTimeString('en-US', { 
+    return date.toLocaleTimeString(t('locale'), { 
       hour: 'numeric',
       minute: 'numeric',
       hour12: true
@@ -263,9 +266,9 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     } else if (paymentMethod === 'upi') {
       if (availableUPIApps.length === 0) {
         Alert.alert(
-          'No UPI Apps',
-          'No UPI payment apps found on your device. Please install a UPI app to continue.',
-          [{ text: 'OK' }]
+          t('noUPIAppsTitle'),
+          t('noUPIAppsMessage'),
+          [{ text: t('ok') }]
         );
         return;
       }
@@ -287,11 +290,11 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
 
       if (result) {
         Alert.alert(
-          'Payment Confirmation',
-          'Did you complete the payment successfully?',
+          t('paymentConfirmationTitle'),
+          t('paymentConfirmationMessage'),
           [
             {
-              text: 'No',
+              text: t('no'),
               onPress: () => {
                 setPaymentPending(false);
                 setShowPaymentModal(true);
@@ -299,7 +302,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
               style: 'cancel',
             },
             {
-              text: 'Yes',
+              text: t('yes'),
               onPress: () => {
                 saveTransaction();
               },
@@ -308,12 +311,12 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
           { cancelable: false }
         );
       } else {
-        Alert.alert('Error', 'Failed to open payment app');
+        Alert.alert(t('errorTitle'), t('failedToOpenPaymentApp'));
         setPaymentPending(false);
       }
     } catch (error) {
       console.error('Payment error:', error);
-      Alert.alert('Error', 'Failed to process payment');
+      Alert.alert(t('errorTitle'), t('failedToProcessPayment'));
       setPaymentPending(false);
     }
   };
@@ -337,7 +340,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         // Validate digit count
         const wholeNumber = newAmount.split('.')[0];
         if (wholeNumber.length > MAX_DIGITS) {
-          Alert.alert('Invalid Amount', 'Maximum 9 digits allowed');
+          Alert.alert(t('invalidAmountTitle'), t('maxDigitsAllowed'));
           return prevAmount;
         }
         
@@ -345,7 +348,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       });
       setIsProcessing(false);
     }, 100); // Debounce time for multi-touch handling
-  }, [isProcessing]);
+  }, [isProcessing, t]);
 
   const handleOperator = useCallback((operator) => {
     if (isProcessing) return;
@@ -358,7 +361,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       }
       setIsProcessing(false);
     }, 100);
-  }, [amount, isProcessing]);
+  }, [amount, isProcessing, t]);
 
   const calculate = useCallback(() => {
     if (isProcessing) return;
@@ -369,7 +372,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         try {
           // Handle division by zero
           if (expression.endsWith('/') && parseFloat(amount) === 0) {
-            Alert.alert('Invalid Operation', 'Cannot divide by zero');
+            Alert.alert(t('invalidOperationTitle'), t('divisionByZeroMessage'));
             handleClear();
             setIsProcessing(false);
             return;
@@ -381,7 +384,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
           
           // Handle invalid results
           if (!isFinite(result)) {
-            Alert.alert('Invalid Amount', 'Result is invalid');
+            Alert.alert(t('invalidAmountTitle'), t('invalidAmountMessage'));
             handleClear();
             setIsProcessing(false);
             return;
@@ -392,20 +395,20 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
           
           // Validate result length
           if (!validateAmount(formattedResult)) {
-            Alert.alert('Invalid Amount', 'Result exceeds maximum digits allowed');
+            Alert.alert(t('invalidAmountTitle'), t('maxDigitsAllowed'));
             handleClear();
           } else {
             setAmount(formattedResult);
             setExpression('');
           }
         } catch (error) {
-          Alert.alert('Error', 'Invalid calculation');
+          Alert.alert(t('errorTitle'), t('invalidCalculationMessage'));
           handleClear();
         }
       }
       setIsProcessing(false);
     }, 100);
-  }, [expression, amount, isProcessing, validateAmount, handleClear]);
+  }, [expression, amount, isProcessing, validateAmount, handleClear, t]);
 
   // Enhanced clear function
   const handleClear = useCallback(() => {
@@ -427,7 +430,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       });
       setIsProcessing(false);
     }, 100);
-  }, [isProcessing]);
+  }, [isProcessing, t]);
 
   // Save Transaction function
   const saveTransaction = useCallback(() => {
@@ -437,12 +440,12 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     const numAmount = parseFloat(amount);
     
     if (isNaN(numAmount) || numAmount === 0) {
-      Alert.alert('Invalid Amount', 'Amount cannot be zero');
+      Alert.alert(t('invalidAmountTitle'), t('amountCannotBeZero'));
       return;
     }
   
     if (!validateAmount(amount)) {
-      Alert.alert('Invalid Amount', 'Amount is invalid');
+      Alert.alert(t('invalidAmountTitle'), t('amountIsInvalid'));
       return;
     }
   
@@ -467,20 +470,20 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         finalCurrency = originalCurrency;
         console.warn(`Conversion rates are missing. Saving amount in ${originalCurrency}.`);
         Alert.alert(
-          'Currency Conversion Unavailable',
-          `Conversion rates are unavailable. Saving amount in ${originalCurrency}.`,
-          [{ text: 'OK' }]
+          t('currencyConversionUnavailableTitle'),
+          t('currencyConversionUnavailableMessage', { currency: originalCurrency }),
+          [{ text: t('ok') }]
         );
       }
     }
-  
+
     const transactionData = {
       id: initialData?.id || Date.now(),
       amount: parseFloat(finalAmount.toFixed(DECIMAL_PLACES)), // Ensure amount is rounded
       currency: finalCurrency,
       convertedAmount: convertedAmount ? parseFloat(convertedAmount.toFixed(DECIMAL_PLACES)) : undefined, // Rounded converted amount
       type,
-      category: type === 'TRANSFER' ? 'Transfer' : category,
+      category: type === 'TRANSFER' ? t('transfer') : category, // Translate 'Transfer' if needed
       account: type === 'TRANSFER' ? fromAccount : account,
       toAccount: type === 'TRANSFER' ? toAccount : undefined,
       note,
@@ -494,30 +497,30 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   }, [
     amount, type, category, account, fromAccount, toAccount, note, selectedDate,
     initialData, isEditMode, onSave, onClose, validateAmount, originalCurrency,
-    state?.defaultCurrency, state?.conversionRates, originalAmount
+    state?.defaultCurrency, state?.conversionRates, originalAmount, t
   ]);
 
   const handleSave = () => {
     if (type === 'TRANSFER') {
       if (!fromAccount) {
-        Alert.alert("Error", "Please select a source account");
+        Alert.alert(t('errorTitle'), t('selectSourceAccount'));
         return;
       }
       if (!toAccount) {
-        Alert.alert("Error", "Please select a destination account");
+        Alert.alert(t('errorTitle'), t('selectDestinationAccount'));
         return;
       }
       if (fromAccount === toAccount) {
-        Alert.alert("Error", "Source and destination accounts cannot be the same");
+        Alert.alert(t('errorTitle'), t('sameSourceDestinationAccount'));
         return;
       }
     } else if (!account) {
-      Alert.alert("Error", "Please select an account");
+      Alert.alert(t('errorTitle'), t('selectAccount'));
       return;
     }
     
     if (!category && type !== 'TRANSFER') {
-      Alert.alert('Error', 'Please select a category');
+      Alert.alert(t('errorTitle'), t('selectCategory'));
       return;
     }
 
@@ -536,7 +539,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         onPress={() => setShowFromAccountModal(true)}
       >
         <Text style={{ color: fromAccount ? COLORS.text.primary : COLORS.text.secondary }}>
-          {fromAccount || 'From Account'}
+          {fromAccount || t('fromAccount')}
         </Text>
       </TouchableOpacity>
       
@@ -545,7 +548,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         onPress={() => setShowToAccountModal(true)}
       >
         <Text style={{ color: toAccount ? COLORS.text.primary : COLORS.text.secondary }}>
-          {toAccount || 'To Account'}
+          {toAccount || t('toAccount')}
         </Text>
       </TouchableOpacity>
     </>
@@ -659,18 +662,18 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     >
       <SafeAreaView style={styles.modalContainer}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Select UPI App</Text>
+          <Text style={styles.modalTitle}>{t('selectUPIApp')}</Text>
           <TouchableOpacity onPress={() => {
             setShowUPIAppsModal(false);
             setShowPaymentModal(true);
           }}>
-            <Text style={{ color: COLORS.primary }}>Back</Text>
+            <Text style={{ color: COLORS.primary }}>{t('back')}</Text>
           </TouchableOpacity>
         </View>
         {isLoadingApps ? (
-          <View style={styles.loadingContainer}>
+          <View style={additionalStyles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Checking installed apps...</Text>
+            <Text style={additionalStyles.loadingText}>{t('checkingInstalledApps')}</Text>
           </View>
         ) : (
           <FlatList
@@ -685,8 +688,8 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
               </TouchableOpacity>
             )}
             ListEmptyComponent={() => (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No UPI apps installed</Text>
+              <View style={additionalStyles.emptyContainer}>
+                <Text style={additionalStyles.emptyText}>{t('noUPIAppsInstalled')}</Text>
               </View>
             )}
           />
@@ -701,10 +704,10 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
-            <Text style={[styles.headerButton, styles.cancelButton]}>CANCEL</Text>
+            <Text style={[styles.headerButton, styles.cancelButton]}>{t('cancel')}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleSave}>
-            <Text style={[styles.headerButton, styles.saveButton]}>SAVE</Text>
+            <Text style={[styles.headerButton, styles.saveButton]}>{t('save')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -717,7 +720,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
               onPress={() => setType(typeOption)}
             >
               <Text style={[styles.typeText, type === typeOption && styles.activeTypeText]}>
-                {typeOption}
+                {t(typeOption.toLowerCase())}
               </Text>
             </TouchableOpacity>
           ))}
@@ -734,7 +737,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
                 onPress={() => setShowAccountModal(true)}
               >
                 <Text style={{ color: account ? COLORS.text.primary : COLORS.text.secondary }}>
-                  {account || 'Account'}
+                  {account || t('selectAccount')}
                 </Text>
               </TouchableOpacity>
               
@@ -743,7 +746,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
                 onPress={() => setShowCategoryModal(true)}
               >
                 <Text style={{ color: category ? COLORS.text.primary : COLORS.text.secondary }}>
-                  {category || 'Category'}
+                  {category || t('selectCategory')}
                 </Text>
               </TouchableOpacity>
             </>
@@ -751,7 +754,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
           
           <View style={styles.inputField}>
             <TextInput
-              placeholder="Add notes"
+              placeholder={t('addNotes')}
               placeholderTextColor={COLORS.text.secondary}
               style={styles.noteInput}
               value={note}
@@ -816,13 +819,13 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
                     setShowDatePicker(false);
                     setShowTimePicker(false);
                   }}>
-                    <Text style={{ color: COLORS.primary, fontSize: wp('4%') }}>Cancel</Text>
+                    <Text style={{ color: COLORS.primary, fontSize: wp('4%') }}>{t('cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => {
                     setShowDatePicker(false);
                     setShowTimePicker(false);
                   }}>
-                    <Text style={{ color: COLORS.primary, fontSize: wp('4%') }}>Done</Text>
+                    <Text style={{ color: COLORS.primary, fontSize: wp('4%') }}>{t('done')}</Text>
                   </TouchableOpacity>
                 </View>
                 <DateTimePicker
@@ -847,9 +850,9 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Category</Text>
+              <Text style={styles.modalTitle}>{t('selectCategory')}</Text>
               <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                <Text style={{ color: COLORS.primary }}>Done</Text>
+                <Text style={{ color: COLORS.primary }}>{t('done')}</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -863,7 +866,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
                     setShowCategoryModal(false);
                   }}
                 >
-                  <Text style={styles.listItemText}>{item}</Text>
+                  <Text style={styles.listItemText}>{t(item.toLowerCase().replace(/ & /g, '_').replace(/ /g, '_'))}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -878,9 +881,9 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Account</Text>
+              <Text style={styles.modalTitle}>{t('selectAccount')}</Text>
               <TouchableOpacity onPress={() => setShowAccountModal(false)}>
-                <Text style={{ color: COLORS.primary }}>Done</Text>
+                <Text style={{ color: COLORS.primary }}>{t('done')}</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -894,7 +897,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
                       setShowAccountModal(false);
                     }}
                   >
-                    <Text style={styles.listItemText}>{item}</Text>
+                    <Text style={styles.listItemText}>{t(item.toLowerCase().replace(/ /g, '_'))}</Text>
                   </TouchableOpacity>
                 )}
               />
@@ -909,9 +912,9 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Source Account</Text>
+              <Text style={styles.modalTitle}>{t('selectSourceAccount')}</Text>
               <TouchableOpacity onPress={() => setShowFromAccountModal(false)}>
-                <Text style={{ color: COLORS.primary }}>Done</Text>
+                <Text style={{ color: COLORS.primary }}>{t('done')}</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -925,7 +928,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
                     setShowFromAccountModal(false);
                   }}
                 >
-                  <Text style={styles.listItemText}>{item}</Text>
+                  <Text style={styles.listItemText}>{t(item.toLowerCase().replace(/ /g, '_'))}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -940,9 +943,9 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Destination Account</Text>
+              <Text style={styles.modalTitle}>{t('selectDestinationAccount')}</Text>
               <TouchableOpacity onPress={() => setShowToAccountModal(false)}>
-                <Text style={{ color: COLORS.primary }}>Done</Text>
+                <Text style={{ color: COLORS.primary }}>{t('done')}</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -956,7 +959,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
                     setShowToAccountModal(false);
                   }}
                 >
-                  <Text style={styles.listItemText}>{item}</Text>
+                  <Text style={styles.listItemText}>{t(item.toLowerCase().replace(/ /g, '_'))}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -971,9 +974,9 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Payment Method</Text>
+              <Text style={styles.modalTitle}>{t('selectPaymentMethod')}</Text>
               <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
-                <Text style={{ color: COLORS.primary }}>Cancel</Text>
+                <Text style={{ color: COLORS.primary }}>{t('cancel')}</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -984,7 +987,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
                   style={styles.listItem}
                   onPress={() => handlePayment(item.id)}
                 >
-                  <Text style={styles.listItemText}>{item.name}</Text>
+                  <Text style={styles.listItemText}>{t(item.name.toLowerCase().replace(/ /g, '_'))}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -1009,7 +1012,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
             }}>
               <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={[styles.modalTitle, { marginTop: wp('2%') }]}>
-                Processing Payment
+                {t('processingPayment')}
               </Text>
             </View>
           </View>

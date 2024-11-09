@@ -363,9 +363,7 @@ const BudgetsScreen = () => {
             <Text>{t("No transfer categories available")}</Text>
           )}
         </View>
-
-        {/* ... Rest of your code ... */}
-
+        
         {/* Modal for editing budget limit */}
         <Modal
           visible={modalVisible}

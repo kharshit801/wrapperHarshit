@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ScrollView,
   View,
@@ -9,7 +9,6 @@ import {
   SafeAreaView,
   StatusBar,
 } from "react-native";
-import { LineChart, PieChart } from "react-native-chart-kit";
 import { COLORS } from "../../../constants/theme";
 import ChatInterface from "../../../components/ChatInterface";
 import {
@@ -20,22 +19,101 @@ import Header from "../../../components/commonheader";
 import { useGlobalContext } from "../../../components/globalProvider";
 import ChatGuidePointer from "../../../components/ChatGuidePointet";
 import LottieView from "lottie-react-native";
+import { LineChart, PieChart } from "react-native-chart-kit";
+import { useTranslation } from "react-i18next";
 
 const TIMEFRAMES = ["month", "quarter", "year"];
 
+const TimeframeSelector = ({ selectedTimeframe, setSelectedTimeframe }) => {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.timeframeContainer}>
+      {TIMEFRAMES.map((timeframe) => (
+        <TouchableOpacity
+          key={timeframe}
+          style={[
+            styles.timeframeButton,
+            selectedTimeframe === timeframe && styles.timeframeButtonActive,
+          ]}
+          onPress={() => setSelectedTimeframe(timeframe)}
+        >
+          <Text
+            style={[
+              styles.timeframeText,
+              selectedTimeframe === timeframe && styles.timeframeTextActive,
+            ]}
+          >
+            {t(timeframe.charAt(0).toUpperCase() + timeframe.slice(1))}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+};
+
+const CategoryLegend = ({ data }) => (
+  <View style={styles.legendContainer}>
+    {data.map((item, index) => (
+      <View key={`${item.label}-${index}`} style={styles.legendItem}>
+        <View
+          style={[styles.legendColor, { backgroundColor: item.color }]}
+        />
+        <Text style={styles.legendText}>
+          {item.label} ({item.percentageUsed.toFixed(1)}%)
+        </Text>
+      </View>
+    ))}
+  </View>
+);
+
+const SummaryCard = ({ label, value }) => {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.summaryCard}>
+      <Text style={styles.summaryLabel}>{t(label)}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+};
+
+const ProgressCard = ({ category }) => (
+  <View key={category.label} style={styles.progressCard}>
+    <View style={styles.progressHeader}>
+      <Text style={styles.categoryName}>{category.label}</Text>
+      <Text style={styles.percentageUsed}>
+        {category.percentageUsed.toFixed(1)}% used
+      </Text>
+    </View>
+    <View style={styles.progressBar}>
+      <View
+        style={[
+          styles.progressFill,
+          {
+            width: `${Math.min(category.percentageUsed, 100)}%`,
+            backgroundColor:
+              category.percentageUsed > 100 ? COLORS.danger : COLORS.secondary,
+          },
+        ]}
+      />
+    </View>
+  </View>
+);
+
 const Analysis = () => {
-  // Get necessary data and functions from the global context
-  const { state, convertAmount } = useGlobalContext();
-  const { summary, transactions, budgets, defaultCurrency, currencies } = state;
+  const { state, dispatch } = useGlobalContext();
+  const { summary, transactions, budgets } = state;
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState("month");
-  const screenWidth = Dimensions.get("window").width;
   const [showSpotlight, setShowSpotlight] = useState(true);
+  const { t, i18n } = useTranslation();
+  const screenWidth = Dimensions.get("window").width;
 
-  // Get the symbol of the default currency
-  const currencySymbol = currencies[defaultCurrency]?.symbol || defaultCurrency;
+  useEffect(() => {
+    if (state.language && i18n.language !== state.language) {
+      i18n.changeLanguage(state.language);
+    }
+  }, [state.language]);
 
-  // Enhanced data processing with currency conversion
   const processedData = useMemo(() => {
     const today = new Date();
     const periods = {
@@ -63,7 +141,6 @@ const Analysis = () => {
     let totalSpent = 0;
     let totalBudget = 0;
 
-    // Initialize period data
     for (let i = periodCount - 1; i >= 0; i--) {
       let periodStartDate, periodEndDate;
       if (selectedTimeframe === "month") {
@@ -73,10 +150,9 @@ const Analysis = () => {
       } else if (selectedTimeframe === "quarter") {
         const monthsBack = i * 3;
         const date = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
-        const quarterStartMonth = Math.floor(date.getMonth() / 3) * 3;
-        periodStartDate = new Date(date.getFullYear(), quarterStartMonth, 1);
-        periodEndDate = new Date(date.getFullYear(), quarterStartMonth + 3, 0);
-      } else if (selectedTimeframe === "year") {
+        periodStartDate = new Date(date.getFullYear(), Math.floor(date.getMonth() / 3) * 3, 1);
+        periodEndDate = new Date(date.getFullYear(), periodStartDate.getMonth() + 3, 0);
+      } else {
         const year = today.getFullYear() - i;
         periodStartDate = new Date(year, 0, 1);
         periodEndDate = new Date(year, 11, 31);
@@ -92,289 +168,137 @@ const Analysis = () => {
       });
     }
 
-    // Process transactions with currency conversion
     transactions.forEach((transaction) => {
       const transactionDate = new Date(transaction.date);
-      const convertedAmount = convertAmount(
-        transaction.amount,
-        transaction.currency,
-        defaultCurrency
-      );
-      for (let i = 0; i < periodData.length; i++) {
-        const period = periodData[i];
-        if (
-          transactionDate >= period.startDate &&
-          transactionDate <= period.endDate
-        ) {
+      periodData.forEach((period) => {
+        if (transactionDate >= period.startDate && transactionDate <= period.endDate) {
           if (transaction.type === "EXPENSE") {
-            period.expenses += convertedAmount;
-            totalSpent += convertedAmount;
-
-            // Category aggregation
+            period.expenses += transaction.amount;
+            totalSpent += transaction.amount;
             if (!categoryData[transaction.category]) {
               categoryData[transaction.category] = {
                 amount: 0,
                 budget:
-                  budgets.find(
-                    (b) =>
-                      b.title.toLowerCase() ===
-                      transaction.category.toLowerCase()
-                  )?.limit || 0,
+                  budgets.find((b) => b.title.toLowerCase() === transaction.category.toLowerCase())
+                    ?.limit || 0,
               };
             }
-            categoryData[transaction.category].amount += convertedAmount;
-          } else if (transaction.type === "INCOME") {
-            period.income += convertedAmount;
+            categoryData[transaction.category].amount += transaction.amount;
+          } else {
+            period.income += transaction.amount;
           }
-          break;
         }
-      }
+      });
     });
 
-    // Calculate savings rate and budget utilization
     periodData.forEach((period) => {
       period.savings =
-        period.income !== 0
-          ? ((period.income - period.expenses) / period.income) * 100
-          : 0;
+        period.income !== 0 ? ((period.income - period.expenses) / period.income) * 100 : 0;
     });
 
-    // Process budgets (assumed to be in default currency)
     budgets.forEach((budget) => {
       totalBudget += budget.limit;
     });
-
-    const budgetUtilization = totalBudget !== 0 ? (totalSpent / totalBudget) * 100 : 0;
 
     return {
       periodData,
       categoryData,
       totalSpent,
       totalBudget,
-      budgetUtilization,
+      budgetUtilization: totalBudget ? (totalSpent / totalBudget) * 100 : 0,
     };
-  }, [transactions, selectedTimeframe, budgets, defaultCurrency, convertAmount]);
+  }, [transactions, selectedTimeframe, budgets]);
 
-  // Prepare chart data
-  const spendingTrendData = {
+  const lineChartData = {
     labels: processedData.periodData.map((d) => d.label),
     datasets: [
       {
-        data: processedData.periodData.map((d) => d.expenses),
-        color: () => COLORS.secondary,
+        data: processedData.periodData.map((d) => d.income),
+        color: () => COLORS.income,
         strokeWidth: 2,
       },
       {
-        data: processedData.periodData.map((d) => d.income),
-        color: () => COLORS.accent,
+        data: processedData.periodData.map((d) => d.expenses),
+        color: () => COLORS.expenses,
         strokeWidth: 2,
       },
     ],
-    legend: ["Expenses", "Income"],
+    legend: [t("Income"), t("Expenses")],
   };
 
-  // Consistent color assignment for categories
-  const categoryNames = Object.keys(processedData.categoryData);
-  const colors = COLORS.chartColors;
-
-  const categoryChartData = categoryNames.map((category, index) => {
+  const pieChartData = Object.keys(processedData.categoryData).map((category, index) => {
     const data = processedData.categoryData[category];
     return {
-      name:
-        category.length > 10 ? category.substring(0, 8) + "..." : category,
+      name: category,
       amount: data.amount,
-      color: colors[index % colors.length],
+      color: COLORS.chartColors[index % COLORS.chartColors.length],
       legendFontColor: COLORS.text.primary,
-      legendFontSize: wp("3%"),
-      percentageUsed:
-        data.budget !== 0 ? (data.amount / data.budget) * 100 : 0,
+      legendFontSize: 12,
+      percentageUsed: data.budget ? (data.amount / data.budget) * 100 : 0,
     };
   });
 
-  // Category legend component
-  const CategoryLegend = ({ data }) => (
-    <View style={styles.legendContainer}>
-      {data.map((item) => (
-        <View key={item.name} style={styles.legendItem}>
-          <View
-            style={[styles.legendColor, { backgroundColor: item.color }]}
-          />
-          <Text style={styles.legendText}>
-            {item.name} (
-            {((item.amount / processedData.totalSpent) * 100).toFixed(1)}%)
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
-
-  // Timeframe selector component
-  const TimeframeSelector = () => (
-    <View style={styles.timeframeContainer}>
-      {TIMEFRAMES.map((timeframe) => (
-        <TouchableOpacity
-          key={timeframe}
-          style={[
-            styles.timeframeButton,
-            selectedTimeframe === timeframe && styles.timeframeButtonActive,
-          ]}
-          onPress={() => setSelectedTimeframe(timeframe)}
-        >
-          <Text
-            style={[
-              styles.timeframeText,
-              selectedTimeframe === timeframe && styles.timeframeTextActive,
-            ]}
-          >
-            {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
-      <Header seachIconShown={false} />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <Header searchIconShown={false} />
 
       <ScrollView style={styles.content}>
-        <TimeframeSelector />
+        <TimeframeSelector selectedTimeframe={selectedTimeframe} setSelectedTimeframe={setSelectedTimeframe} />
 
-        {/* Summary Cards */}
         <View style={styles.summaryContainer}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Total Spent</Text>
-            <Text style={styles.summaryValue}>
-              {currencySymbol}
-              {processedData.totalSpent.toFixed(2).toLocaleString()}
-            </Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Budget Utilized</Text>
-            <Text style={styles.summaryValue}>
-              {processedData.budgetUtilization.toFixed(1)}%
-            </Text>
-          </View>
+          <SummaryCard label={t("Total_Spent")} value={`₹${processedData.totalSpent.toLocaleString()}`} />
+          <SummaryCard label={t("Budget_Utilized")} value={`${processedData.budgetUtilization.toFixed(1)}%`} />
         </View>
 
-        {/* Spending Trend Chart */}
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>Income vs Expenses Trend</Text>
+          <Text style={styles.chartTitle}>{t("Income vs Expenses Trend")}</Text>
           <LineChart
-            data={spendingTrendData}
-            width={screenWidth - wp("12%")}
+            data={lineChartData}
+            width={screenWidth - wp("18%")}
             height={220}
-            yAxisLabel={currencySymbol}
+            yAxisLabel="₹"
             chartConfig={{
-              backgroundColor: COLORS.primary,
+              backgroundColor: COLORS.secondary,
               backgroundGradientFrom: COLORS.primary,
               backgroundGradientTo: COLORS.primary,
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              style: {
-                borderRadius: 16,
-              },
-              propsForDots: {
-                r: "4",
-                strokeWidth: "2",
-                stroke: COLORS.primary,
-              },
-              propsForLabels: {
-                fontSize: wp("3%"),
-              },
-              spacing: wp("2%"),
-              formatYLabel: (value) =>
-                parseFloat(value)
-                  .toFixed(2)
-                  .toString()
-                  .replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+              decimalPlaces: 2,
+              color: () => COLORS.secondary,
+              labelColor: () => COLORS.text.primary,
             }}
             bezier
-            style={[
-              styles.chart,
-              {
-                marginVertical: hp("1%"),
-                paddingRight: wp("4%"),
-              },
-            ]}
-            withInnerLines={true}
-            withOuterLines={true}
-            withVerticalLabels={true}
-            withHorizontalLabels={true}
-            fromZero={true}
-            segments={5}
+            style={{ marginVertical: 8, borderRadius: 16 }}
+            fromZero
           />
         </View>
 
-        {/* Category Analysis */}
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>Spending by Category</Text>
-          <View style={styles.pieChartContainer}>
-            <PieChart
-              data={categoryChartData}
-              width={screenWidth - wp("40%")}
-              height={200}
-              chartConfig={{
-                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              }}
-              accessor="amount"
-              backgroundColor="transparent"
-              paddingLeft={0}
-              absolute
-              hasLegend={false}
-              center={[50, 0]}
-            />
-            <CategoryLegend data={categoryChartData} />
-          </View>
+          <Text style={styles.chartTitle}>{t("Spending by Category")}</Text>
+          <PieChart
+            data={pieChartData}
+            width={screenWidth - wp("8%")}
+            height={220}
+            chartConfig={{ color: () => `rgb(0, 0, 0)` }}
+            accessor="amount"
+            backgroundColor="transparent"
+            paddingLeft="15"
+            absolute
+          />
+          <CategoryLegend data={pieChartData} />
         </View>
 
-        {/* Category Budget Progress */}
         <View style={styles.categoryProgressContainer}>
-          <Text style={styles.chartTitle}>Budget Progress</Text>
-          {categoryChartData.map((category) => (
-            <View key={category.name} style={styles.progressCard}>
-              <View style={styles.progressHeader}>
-                <Text style={styles.categoryName}>{category.name}</Text>
-                <Text style={styles.percentageUsed}>
-                  {category.percentageUsed.toFixed(1)}% used
-                </Text>
-              </View>
-              <View style={styles.progressBar}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${Math.min(category.percentageUsed, 100)}%`,
-                      backgroundColor:
-                        category.percentageUsed > 100
-                          ? COLORS.danger
-                          : COLORS.secondary,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
+          <Text style={styles.chartTitle}>{t("Budget Progress")}</Text>
+          {pieChartData.map((category, index) => (
+            <ProgressCard key={`${category.name}-${index}`} category={category} />
           ))}
         </View>
       </ScrollView>
 
-      {/* AI Chat Button */}
-      {showSpotlight && (
-        <ChatGuidePointer onDismiss={() => setShowSpotlight(false)} />
-      )}
+      {showSpotlight && <ChatGuidePointer onDismiss={() => setShowSpotlight(false)} />}
 
       <TouchableOpacity
-        style={[
-          styles.chatButton,
-          showSpotlight && styles.chatButtonSpotlight,
-        ]}
+        style={[styles.chatButton, showSpotlight && styles.chatButtonSpotlight]}
         onPress={() => setIsChatOpen(true)}
       >
         <LottieView
@@ -387,11 +311,7 @@ const Analysis = () => {
 
       {isChatOpen && (
         <View style={StyleSheet.absoluteFill}>
-          <ChatInterface
-            summary={summary}
-            transactions={transactions}
-            onClose={() => setIsChatOpen(false)}
-          />
+          <ChatInterface summary={summary} transactions={transactions} onClose={() => setIsChatOpen(false)} />
         </View>
       )}
     </SafeAreaView>
@@ -407,17 +327,23 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: wp("4%"),
   },
+  chartTitle: {
+    fontSize: wp("4.5%"),
+    color: COLORS.text.primary,
+    fontWeight: "bold",
+    marginBottom: hp("2%"),
+  },
   timeframeContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: hp("2%"),
+    marginBottom: hp("3%"),
     backgroundColor: COLORS.lightbackground,
     borderRadius: wp("4%"),
-    padding: wp("1%"),
+    padding: wp("1.5%"),
   },
   timeframeButton: {
     flex: 1,
-    paddingVertical: hp("1%"),
+    paddingVertical: hp("1.5%"),
     alignItems: "center",
     borderRadius: wp("3%"),
   },
@@ -426,7 +352,7 @@ const styles = StyleSheet.create({
   },
   timeframeText: {
     color: COLORS.text.secondary,
-    fontSize: wp("3.5%"),
+    fontSize: wp("4%"),
     fontWeight: "500",
   },
   timeframeTextActive: {
@@ -436,7 +362,7 @@ const styles = StyleSheet.create({
   summaryContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: hp("2%"),
+    marginBottom: hp("3%"),
   },
   summaryCard: {
     flex: 1,
@@ -444,71 +370,72 @@ const styles = StyleSheet.create({
     borderRadius: wp("4%"),
     padding: wp("4%"),
     marginHorizontal: wp("1%"),
+    elevation: 3,
   },
   summaryLabel: {
     color: COLORS.text.secondary,
-    fontSize: wp("3.5%"),
-    marginBottom: hp("0.5%"),
+    fontSize: wp("4%"),
+    marginBottom: hp("1%"),
   },
   summaryValue: {
     color: COLORS.text.primary,
-    fontSize: wp("4.5%"),
+    fontSize: wp("5%"),
     fontWeight: "bold",
   },
   chartContainer: {
-    marginBottom: hp("3%"),
+    marginBottom: hp("4%"),
     backgroundColor: COLORS.primary,
     borderRadius: wp("4%"),
     padding: wp("4%"),
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
     elevation: 5,
   },
-  pieChartContainer: {
+  legendContainer: {
+    width: "100%",
+    paddingHorizontal: wp("4%"),
+  },
+  legendItem: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: hp("2%"),
-  },
-  chartTitle: {
-    fontSize: wp("4%"),
-    color: COLORS.text.primary,
-    fontWeight: "bold",
-    marginBottom: hp("1%"),
-  },
-  chart: {
     marginVertical: hp("1%"),
-    borderRadius: wp("4%"),
-    paddingTop: hp("1%"),
+  },
+  legendColor: {
+    width: wp("4%"),
+    height: wp("4%"),
+    borderRadius: wp("2%"),
+    marginRight: wp("3%"),
+  },
+  legendText: {
+    color: COLORS.text.primary,
+    fontSize: wp("3.5%"),
+    flex: 1,
   },
   categoryProgressContainer: {
-    marginBottom: hp("3%"),
+    marginBottom: hp("4%"),
   },
   progressCard: {
-    marginBottom: hp("2%"),
+    marginBottom: hp("2.5%"),
+    backgroundColor: COLORS.primary,
+    padding: wp("4%"),
+    borderRadius: wp("3%"),
+    elevation: 2,
   },
   progressHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: hp("1%"),
+    marginBottom: hp("1.5%"),
   },
   categoryName: {
-    fontSize: wp("3.5%"),
+    fontSize: wp("4%"),
     color: COLORS.text.primary,
     fontWeight: "500",
   },
   percentageUsed: {
-    fontSize: wp("3%"),
+    fontSize: wp("3.5%"),
     color: COLORS.text.secondary,
   },
   progressBar: {
-    height: hp("1.5%"),
+    height: hp("2%"),
     backgroundColor: COLORS.lightbackground,
     borderRadius: wp("2%"),
     overflow: "hidden",
@@ -521,50 +448,17 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: hp("3%"),
     right: wp("4%"),
-    width: wp("12%"),
-    height: wp("12%"),
-    borderRadius: wp("6%"),
+    width: wp("14%"),
+    height: wp("14%"),
+    borderRadius: wp("7%"),
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: COLORS.secondary,
     elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
   },
   chatButtonSpotlight: {
-    elevation: 25,
-    shadowColor: "#fff",
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-  },
-  legendContainer: {
-    flex: 1,
-    marginLeft: wp("4%"),
-    justifyContent: "center",
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: hp("0.5%"),
-  },
-  legendColor: {
-    width: wp("3%"),
-    height: wp("3%"),
-    borderRadius: wp("1.5%"),
-    marginRight: wp("2%"),
-  },
-  legendText: {
-    color: COLORS.text.primary,
-    fontSize: wp("3%"),
-    flex: 1,
+    elevation: 8,
+    backgroundColor: COLORS.secondary,
   },
 });
 

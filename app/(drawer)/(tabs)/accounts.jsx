@@ -161,13 +161,6 @@ const AccountsScreen = () => {
         <Text style={styles.sectionTitle}>{t('accounts')}</Text>
         <View style={styles.accountsList}>
           {accounts.map(renderAccountCard)}
-          <TouchableOpacity 
-            style={styles.addAccountButton}
-            onPress={handleAddAccount}
-          >
-            <Ionicons name="add-circle-outline" size={wp('6%')} color={COLORS.text.primary} />
-            <Text style={styles.addAccountText}>{t('ADD NEW ACCOUNT')}</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>

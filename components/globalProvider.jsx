@@ -47,7 +47,8 @@ const initialState = {
     language: null,
     theme: 'light',
     fontLoaded: false,
-    hasLaunched: false
+    hasLaunched: false,
+    spentByCategory: {},
 };
 
 // Initialize database
@@ -469,10 +470,11 @@ export const GlobalProvider = ({ children }) => {
                 WHERE type = 'EXPENSE' 
                 GROUP BY category
             `);
-            return result;
+            console.log('Database query result:', result); // Log the raw result
+            return result || []; // Ensure it returns an empty array if result is undefined
         } catch (error) {
             console.error('Error fetching spent by category:', error);
-            return [];
+            return []; // Return an empty array on error
         }
     };
 

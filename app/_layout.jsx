@@ -59,7 +59,10 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="signup" options={{ gestureEnabled: false }} /> // Added signup route
+        <Stack.Screen name="login" options={{ gestureEnabled: false }} /> // Added login route
 
+ 
           <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
 
         </Stack>
@@ -67,6 +70,8 @@ export default function RootLayout() {
     </GestureHandlerRootView>
     </GlobalProvider>
     </I18nextProvider>
+
+    
     
   );
 }

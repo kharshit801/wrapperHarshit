@@ -22,32 +22,61 @@ import { useGlobalContext } from './../../components/globalProvider';
 import { COLORS } from "../../constants/theme";
 import ExportDataModal from '../../components/ExportDataModal';
 import { set } from "date-fns";
+import { backupService } from '../../components/backup';
+import { useRouter } from "expo-router";
+import * as ImagePicker from 'expo-image-picker'; // Importing ImagePicker for QR scanning
+import { ExpoCamera } from 'expo-camera';
 
 
 const CustomDrawerContent = (props) => {
+
+  const router = useRouter();
  
   const [isExportModalVisible, setIsExportModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const { state, dispatch, changeLanguage } = useGlobalContext();
-  const { t ,i18n} = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { loadExpensesFromDB } = useGlobalContext();
+
+  const handleBackup = async () => {
+    try {
+      await backupService.exportToMongoDB();
+      alert('Backup completed successfully');
+    } catch (error) {
+      alert('Backup failed: ' + error.message);
+    }
+  };
 
   const handleLanguageSelect = (language) => {
     console.log("Current language in state:", state.language);
     changeLanguage(language);
     setIsModalVisible(false); 
     console.log("Language changed to", language);
-};
+  };
 
-useEffect(() => {
-    
-  if (state.language && i18n.language !== state.language) {
-    i18n.changeLanguage(state.language);
-  }
-  else{
-    i18n.changeLanguage(state.language);
-  }
-}, [state.language]);
+  const handleScanQR = async () => {
+    const { status } = await ExpoCamera.requestCameraPermissionsAsync();
+    if (status === 'granted') {
+      // Logic to open camera for scanning QR codes
+      const { type } = await ExpoCamera.launchCameraAsync();
+      if (type === 'success') {
+        console.log('Camera opened for QR scanning!'); // Placeholder for actual scanner
+      }
+    } else {
+      alert('Camera permission is required to scan QR codes.');
+    }
+  };
+
+  useEffect(() => {
+    if (state.language && i18n.language !== state.language) {
+      i18n.changeLanguage(state.language);
+    } else {
+      i18n.changeLanguage(state.language);
+    }
+  }, [state.language]);
 
   return (
     <>
@@ -105,19 +134,24 @@ useEffect(() => {
             onPress={() => setIsModalVisible(true)}
             labelStyle={{ color: COLORS.background }}
           />
-         
+          <DrawerItem
+            label={t('Scan QR')}
+            icon={() => <MaterialIcons name="qr-code-scanner" size={wp("6%")} color={"#000000"} />}
+            onPress={handleScanQR}
+            labelStyle={{ color: COLORS.background }}
+          />
           <DrawerItem
             label={t('Export Data')}
             icon={() => <Ionicons name="exit" size={wp("6%")} color={"#000000"} />}
             onPress={() => setIsExportModalVisible(true)}
             labelStyle={{ color: COLORS.background }}
           />
-          {/* <DrawerItem
-            label={t('Logout')}
+          <DrawerItem
+            label={t('Backup')}
             icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#ff6b6b" />}
-            onPress={() => console.log("Logout pressed")}
+            onPress={() => router.push('/signup')}
             labelStyle={{ color: "#ff6b6b" }}
-          /> */}
+          />
         </View>
       </DrawerContentScrollView>
 
@@ -151,7 +185,7 @@ useEffect(() => {
           </View>
         </View>
       </Modal>
-       <ExportDataModal 
+      <ExportDataModal 
         visible={isExportModalVisible}
         onClose={() => setIsExportModalVisible(false)}
       />

@@ -18,10 +18,12 @@ import { useNavigation } from '@react-navigation/native';
 import Header from '../../../components/commonheader';
 import { useGlobalContext } from '../../../components/globalProvider';
 import { useTranslation } from 'react-i18next';
+import QRCode from 'react-native-qrcode-svg';
 
 const AccountsScreen = () => {
   const navigation = useNavigation();
-  const { fetchExpenses, state } = useGlobalContext();
+  const { fetchExpenses, state ,generateTransferData} = useGlobalContext();
+  const [qrData, setQrData] = useState('');
   const [accountBalances, setAccountBalances] = useState({
     Card: 0,
     Cash: 0,
@@ -34,9 +36,17 @@ const AccountsScreen = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
+    const loadData = async () => {
+      const data = await generateTransferData();
+      setQrData(data);
+    };
+    loadData();
+  }, []);
+
+  useEffect(() => {
     loadAccountData();
   }, [state.transactions]);
-
+console.log("QRDAta", qrData)
   const loadAccountData = async () => {
     try {
       const transactions = await fetchExpenses();
@@ -157,15 +167,21 @@ const AccountsScreen = () => {
         <Text style={styles.sectionTitle}>{t('accounts')}</Text>
         <View style={styles.accountsList}>
           {accounts.map(renderAccountCard)}
-          <TouchableOpacity 
+          {/*<TouchableOpacity 
             style={styles.addAccountButton}
             onPress={handleAddAccount}
           >
             <Ionicons name="add-circle-outline" size={wp('6%')} color={COLORS.text.primary} />
             <Text style={styles.addAccountText}>{t('ADD NEW ACCOUNT')}</Text>
-          </TouchableOpacity>
+          </TouchableOpacity>*/}
+            {qrData? <QRCode
+          value={qrData}
+          size={250}
+          backgroundColor="white"
+          color="black"
+        />:null}
         </View>
-      </ScrollView>
+      </ScrollView> 
     </SafeAreaView>
   );
 };

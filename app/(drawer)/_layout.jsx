@@ -25,6 +25,7 @@ import { COLORS } from "../../constants/theme";
 import ExportDataModal from '../../components/ExportDataModal';
 import { set } from "date-fns";
 import { backupService } from '../../components/backup';
+import QRScannerModel from "../../components/QRCodeScanner"
 import { useRouter } from "expo-router";
 import * as ImagePicker from 'expo-image-picker';
 import { ExpoCamera } from 'expo-camera';
@@ -36,10 +37,11 @@ const CustomDrawerContent = (props) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isCurrencyModalVisible, setIsCurrencyModalVisible] = useState(false);
-  const { state, dispatch, changeLanguage } = useGlobalContext();
+  const { state, dispatch, changeLanguage,importTransferData } = useGlobalContext();
   const { t, i18n } = useTranslation();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isQRScannerVisible, setIsQRScannerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [dataImported, setDataImported] = useState(false);
 
   const { loadExpensesFromDB } = useGlobalContext();
 
@@ -72,6 +74,8 @@ const CustomDrawerContent = (props) => {
     try {
       await backupService.exportToMongoDB();
       alert('Backup completed successfully');
+      await   loadExpensesFromDB();
+
     } catch (error) {
       alert('Backup failed: ' + error.message);
     }
@@ -85,14 +89,19 @@ const CustomDrawerContent = (props) => {
   };
 
   const handleScanQR = async () => {
-    const { status } = await ExpoCamera.requestCameraPermissionsAsync();
-    if (status === 'granted') {
-      const { type } = await ExpoCamera.launchCameraAsync();
-      if (type === 'success') {
-        console.log('Camera opened for QR scanning!');
-      }
-    } else {
-      alert('Camera permission is required to scan QR codes.');
+    
+    setIsQRScannerVisible(true);
+
+  };
+  const handleScanSuccess = async (data) => {
+    try {
+      await importTransferData(data);
+      alert('Data imported successfully!');
+      setDataImported(true);
+    } catch (error) {
+      alert('Error importing data: ' + error.message);
+    } finally {
+      setIsQRScannerVisible(false);
     }
   };
 
@@ -103,6 +112,22 @@ const CustomDrawerContent = (props) => {
       i18n.changeLanguage(state.language);
     }
   }, [state.language]);
+
+  useEffect(() => {
+    if (dataImported) {
+      const reloadData = async () => {
+        try {
+          await loadExpensesFromDB();
+        } catch (error) {
+          console.error('Error reloading data:', error);
+        } finally {
+          setDataImported(false);
+        }
+      };
+  
+      reloadData();
+    }
+  }, [dataImported, loadExpensesFromDB]);
 
   return (
     <>
@@ -226,6 +251,11 @@ const CustomDrawerContent = (props) => {
   currentCurrency={state.defaultCurrency}
   loading={loading}
   t={t}
+/>
+<QRScannerModel
+  visible={isQRScannerVisible}
+  onClose={() => setIsQRScannerVisible(false)}
+  onScanSuccess={handleScanSuccess}
 />
 
       <ExportDataModal 

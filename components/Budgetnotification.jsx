@@ -140,5 +140,4 @@ export const BudgetNotificationListener = ({ onNotificationReceived }) => {
       responseSubscription.remove();
     };
   }, [onNotificationReceived]);
-  return null;
-};
+  return null;};

@@ -351,7 +351,7 @@ const BudgetsScreen = () => {
           )}
         </View>
 
-        <TouchableOpacity style={styles.addBudgetButton}>
+        {/* <TouchableOpacity style={styles.addBudgetButton}>
           <View style={styles.addButtonContent}>
             <View style={styles.addIconContainer}>
               <Ionicons name="add" size={wp("6%")} color={COLORS.secondary} />
@@ -368,7 +368,7 @@ const BudgetsScreen = () => {
               color={COLORS.text.secondary}
             />
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <Modal
           visible={modalVisible}

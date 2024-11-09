@@ -278,9 +278,9 @@ const MoneyTracker = () => {
             color={COLORS.text.primary}
           />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
+        {/* <TouchableOpacity style={styles.filterButton}>
           <Ionicons name="filter" size={wp("6%")} color={COLORS.text.primary} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       {/* Summary Section with formatted currency */}

@@ -18,12 +18,12 @@ import { useNavigation } from '@react-navigation/native';
 import Header from '../../../components/commonheader';
 import { useGlobalContext } from '../../../components/globalProvider';
 import { useTranslation } from 'react-i18next';
-import QRCode from 'react-native-qrcode-svg';
 
 const AccountsScreen = () => {
   const navigation = useNavigation();
-  const { fetchExpenses, state ,generateTransferData} = useGlobalContext();
-  const [qrData, setQrData] = useState('');
+  const { fetchExpenses, state, convertAmount } = useGlobalContext();
+  const { defaultCurrency, currencies } = state;
+  const currencySymbol = currencies[defaultCurrency]?.symbol || defaultCurrency;
   const [accountBalances, setAccountBalances] = useState({
     Card: 0,
     Cash: 0,
@@ -36,22 +36,14 @@ const AccountsScreen = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    const loadData = async () => {
-      const data = await generateTransferData();
-      setQrData(data);
-    };
-    loadData();
-  }, []);
-
-  useEffect(() => {
     loadAccountData();
-  }, [state.transactions]);
-console.log("QRDAta", qrData)
+  }, [state.transactions, defaultCurrency]);
+
   const loadAccountData = async () => {
     try {
       const transactions = await fetchExpenses();
       
-      // Calculate balances for each account
+      // Initialize balances for each account
       const balances = {
         Card: 0,
         Cash: 0,
@@ -62,7 +54,8 @@ console.log("QRDAta", qrData)
       let totalIncome = 0;
 
       transactions.forEach(transaction => {
-        const amount = parseFloat(transaction.amount);
+        const originalAmount = parseFloat(transaction.amount);
+        const amount = convertAmount(originalAmount, transaction.currency, defaultCurrency);
         const account = transaction.account || 'Cash'; // Default to Cash if no account specified
 
         if (transaction.type === 'EXPENSE') {
@@ -75,8 +68,9 @@ console.log("QRDAta", qrData)
           // Handle transfers between accounts
           const [fromAccount, toAccount] = transaction.note.split(' to ');
           if (fromAccount && toAccount) {
-            balances[fromAccount] -= amount;
-            balances[toAccount] += amount;
+            const convertedAmount = amount; // Assuming the amount is already converted
+            balances[fromAccount] -= convertedAmount;
+            balances[toAccount] += convertedAmount;
           }
         }
       });
@@ -127,7 +121,7 @@ console.log("QRDAta", qrData)
             styles.accountBalance,
             { color: account.balance >= 0 ? '#51cf66' : '#ff6b6b' }
           ]}>
-            ₹{account.balance.toFixed(2)}
+            {currencySymbol}{account.balance.toFixed(2)}
           </Text>
         </View>
       </View>
@@ -147,44 +141,33 @@ console.log("QRDAta", qrData)
             styles.totalBalanceAmount,
             { color: totalBalance >= 0 ? '#51cf66' : '#ff6b6b' }
           ]}>
-            ₹{totalBalance.toFixed(2)}
+            {currencySymbol}{totalBalance.toFixed(2)}
           </Text>
         </View>
         <View style={styles.summary}>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>{t('Expense Amount')}</Text>
             <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>
-              ₹{summary.totalExpense.toFixed(2)}
+              {currencySymbol}{summary.totalExpense.toFixed(2)}
             </Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>{t('Income Amount')}</Text>
             <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>
-              ₹{summary.totalIncome.toFixed(2)}
+              {currencySymbol}{summary.totalIncome.toFixed(2)}
             </Text>
           </View>
         </View>
         <Text style={styles.sectionTitle}>{t('accounts')}</Text>
         <View style={styles.accountsList}>
           {accounts.map(renderAccountCard)}
-          {/*<TouchableOpacity 
-            style={styles.addAccountButton}
-            onPress={handleAddAccount}
-          >
-            <Ionicons name="add-circle-outline" size={wp('6%')} color={COLORS.text.primary} />
-            <Text style={styles.addAccountText}>{t('ADD NEW ACCOUNT')}</Text>
-          </TouchableOpacity>*/}
-            {qrData? <QRCode
-          value={qrData}
-          size={250}
-          backgroundColor="white"
-          color="black"
-        />:null}
+        
         </View>
-      </ScrollView> 
+      </ScrollView>
     </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

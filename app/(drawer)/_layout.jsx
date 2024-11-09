@@ -205,9 +205,9 @@ const CustomDrawerContent = (props) => {
             />
           <DrawerItem
             label={t('Backup')}
-            icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#ff6b6b" />}
+            icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#1f1f1f" />}
             onPress={() => router.push('/signup')}
-            labelStyle={{ color: "#ff6b6b" }}
+            labelStyle={{ color: COLORS.background }}
           />
            
         </View>

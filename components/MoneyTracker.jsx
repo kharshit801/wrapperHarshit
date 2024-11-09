@@ -10,15 +10,12 @@ import {
   StatusBar,
   Modal,
   Alert,
-  TextInput,
-  ScrollView,
-  Image, // Added Image import
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../constants/theme";
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
-import { formatCurrency, convertAmount } from "../utils/currencyService";
+import { formatCurrency, convertAmount } from '../utils/currencyService';
 
 import {
   widthPercentageToDP as wp,
@@ -27,7 +24,9 @@ import {
 import ExpenseCalculator from "./ExpenseCalculator";
 import TransactionRecord from "./TransactionRecord";
 import { useNavigation } from "@react-navigation/native";
+import Header from "./commonheader";
 import { useGlobalContext } from "./globalProvider";
+import { ScrollView } from "react-native-gesture-handler";
 import {
   format,
   parseISO,
@@ -45,9 +44,6 @@ const MoneyTracker = () => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const { t, i18n } = useTranslation();
 
-  const [showSearchBar, setShowSearchBar] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-
   useEffect(() => {
     if (state.language && i18n.language !== state.language) {
       i18n.changeLanguage(state.language);
@@ -56,57 +52,36 @@ const MoneyTracker = () => {
     }
   }, [state.language]);
 
-  // Filter transactions for current month and search term
+  // Filter transactions for current month
   const currentMonthTransactions = state.transactions.filter((transaction) => {
     const transactionDate = parseISO(transaction.date);
     const monthStart = startOfMonth(parseISO(state.currentMonth));
     const monthEnd = endOfMonth(parseISO(state.currentMonth));
 
-    const isInCurrentMonth = isWithinInterval(transactionDate, {
+    return isWithinInterval(transactionDate, {
       start: monthStart,
       end: monthEnd,
     });
-
-    let matchesSearch = true;
-    if (searchTerm && searchTerm.trim() !== "") {
-      const searchLower = searchTerm.toLowerCase();
-      const noteMatch =
-        transaction.note &&
-        transaction.note.toLowerCase().includes(searchLower);
-      const categoryMatch =
-        transaction.category &&
-        transaction.category.toLowerCase().includes(searchLower);
-      const accountMatch =
-        transaction.account &&
-        transaction.account.toLowerCase().includes(searchLower);
-      matchesSearch = noteMatch || categoryMatch || accountMatch;
-    }
-
-    return isInCurrentMonth && matchesSearch;
   });
 
   // Calculate summary for current month with currency conversion
-  const currentMonthSummary = currentMonthTransactions.reduce(
-    (summary, transaction) => {
-      const convertedAmount = convertAmount(
-        parseFloat(transaction.amount),
-        transaction.currency || "USD",
-        state.defaultCurrency,
-        state.exchangeRates
-      );
+  const currentMonthSummary = currentMonthTransactions.reduce((summary, transaction) => {
+    const convertedAmount = convertAmount(
+      parseFloat(transaction.amount),
+      transaction.currency || 'USD',
+      state.defaultCurrency,
+      state.exchangeRates
+    );
 
-      if (transaction.type === "EXPENSE") {
-        summary.expense += convertedAmount;
-      } else if (transaction.type === "INCOME") {
-        summary.income += convertedAmount;
-      }
-      return summary;
-    },
-    { expense: 0, income: 0 }
-  );
+    if (transaction.type === 'EXPENSE') {
+      summary.expense += convertedAmount;
+    } else if (transaction.type === 'INCOME') {
+      summary.income += convertedAmount;
+    }
+    return summary;
+  }, { expense: 0, income: 0 });
 
-  currentMonthSummary.total =
-    currentMonthSummary.income - currentMonthSummary.expense;
+  currentMonthSummary.total = currentMonthSummary.income - currentMonthSummary.expense;
 
   const showImageSourceOptions = () => {
     Alert.alert(
@@ -128,6 +103,7 @@ const MoneyTracker = () => {
       ]
     );
   };
+
 
   const pickImage = async (source) => {
     try {
@@ -188,12 +164,7 @@ const MoneyTracker = () => {
 
       Alert.alert(
         "Receipt Processed",
-        `Amount: ${formatCurrency(
-          details.amount,
-          state.defaultCurrency
-        )}\nCategory: ${details.category}\nAccount: ${
-          details.account
-        }\n\n${details.notes}`,
+        `Amount: ${formatCurrency(details.amount, state.defaultCurrency)}\nCategory: ${details.category}\nAccount: ${details.account}\n\n${details.notes}`,
         [
           {
             text: "Add Transaction",
@@ -286,43 +257,7 @@ const MoneyTracker = () => {
         backgroundColor="transparent"
         barStyle="light-content"
       />
-      {/* Header */}
-      <View style={styles.headerContainer}>
-        <View style={styles.header}>
-          {/* Sidebar Icon */}
-          <TouchableOpacity onPress={() => navigation.openDrawer()}>
-            <Ionicons
-              name="menu"
-              size={wp("6%")}
-              color={COLORS.text.primary}
-            />
-          </TouchableOpacity>
-
-          {/* App Logo */}
-          <Image
-            source={require("../assets/images/logo.png")} // Make sure the path to your logo is correct
-            style={styles.logo}
-          />
-          {/* Search Icon */}
-          <TouchableOpacity onPress={() => setShowSearchBar(!showSearchBar)}>
-            <Ionicons
-              name={showSearchBar ? "close" : "search"}
-              size={wp("6%")}
-              color={COLORS.text.primary}
-            />
-          </TouchableOpacity>
-        </View>
-        {showSearchBar && (
-          <View style={styles.searchBar}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={t("Search transactions")}
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-            />
-          </View>
-        )}
-      </View>
+      <Header seachIconShown={true} />
 
       {/* Month Navigation */}
       <View style={styles.monthNav}>
@@ -343,6 +278,9 @@ const MoneyTracker = () => {
             color={COLORS.text.primary}
           />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.filterButton}>
+          <Ionicons name="filter" size={wp("6%")} color={COLORS.text.primary} />
+        </TouchableOpacity>
       </View>
 
       {/* Summary Section with formatted currency */}
@@ -350,19 +288,13 @@ const MoneyTracker = () => {
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>{t("Expenses")}</Text>
           <Text style={[styles.summaryAmount, { color: "#ff6b6b" }]}>
-            {formatCurrency(
-              currentMonthSummary.expense,
-              state.defaultCurrency
-            )}
+            {formatCurrency(currentMonthSummary.expense, state.defaultCurrency)}
           </Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>{t("Income")}</Text>
           <Text style={[styles.summaryAmount, { color: "#51cf66" }]}>
-            {formatCurrency(
-              currentMonthSummary.income,
-              state.defaultCurrency
-            )}
+            {formatCurrency(currentMonthSummary.income, state.defaultCurrency)}
           </Text>
         </View>
         <View style={styles.summaryItem}>
@@ -370,16 +302,10 @@ const MoneyTracker = () => {
           <Text
             style={[
               styles.summaryAmount,
-              {
-                color:
-                  currentMonthSummary.total >= 0 ? "#51cf66" : "#ff6b6b",
-              },
+              { color: currentMonthSummary.total >= 0 ? "#51cf66" : "#ff6b6b" },
             ]}
           >
-            {formatCurrency(
-              currentMonthSummary.total,
-              state.defaultCurrency
-            )}
+            {formatCurrency(currentMonthSummary.total, state.defaultCurrency)}
           </Text>
         </View>
       </View>
@@ -403,10 +329,10 @@ const MoneyTracker = () => {
                 ...transaction,
                 convertedAmount: convertAmount(
                   parseFloat(transaction.amount),
-                  transaction.currency || "USD",
+                  transaction.currency || 'USD',
                   state.defaultCurrency,
                   state.exchangeRates
-                ),
+                )
               }}
               onEdit={handleEdit}
               defaultCurrency={state.defaultCurrency}
@@ -422,7 +348,7 @@ const MoneyTracker = () => {
         onLongPress={showImageSourceOptions}
       >
         <LottieView
-          source={require("../assets/animation/camera_add.json")}
+          source={require('../assets/animation/camera_add.json')}
           autoPlay
           loop={false}
           style={styles.animationAdd}
@@ -450,48 +376,13 @@ const MoneyTracker = () => {
       </Modal>
     </SafeAreaView>
   );
+
+
+  
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-
-  headerContainer: {
-    backgroundColor: COLORS.lightbackground,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: wp("4%"),
-  },
-  headerTitle: {
-    fontSize: wp("5%"),
-    fontWeight: "bold",
-    color: COLORS.text.primary,
-    flex: 1,
-    textAlign: "center",
-  },
-  logo: {
-    width: wp("20%"),
-    height: wp("8%"),
-    flex : 1,
-    resizeMode: "contain",
-    marginLeft: wp("2%"),
-  },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: wp("4%"),
-    paddingBottom: hp("1%"),
-  },
-  searchInput: {
-    flex: 1,
-    height: hp("5%"),
-    backgroundColor: COLORS.background,
-    borderRadius: wp("2%"),
-    paddingHorizontal: wp("2%"),
-    color: COLORS.text.primary,
-  },
-
   monthNav: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -531,9 +422,9 @@ const styles = StyleSheet.create({
     minHeight: hp("50%"),
   },
 
-  animation: {
-    width: wp(50),
-    height: wp(50),
+  animation:{
+    width:wp(50),
+    height:wp(50)
   },
 
   emptyStateText: {
@@ -558,11 +449,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
   },
-  animationAdd: {
+  animationAdd:{
     width: wp("14%"),
     height: wp("14%"),
   },
   addButtonText: { fontSize: wp("8%"), color: "#fff", fontWeight: "bold" },
+  filterButton: { marginLeft: wp("4%") },
 });
 
 export default MoneyTracker;

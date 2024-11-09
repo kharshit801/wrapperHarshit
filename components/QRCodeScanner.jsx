@@ -6,6 +6,7 @@ import {
   Modal,
   TouchableOpacity,
   StatusBar,
+  SafeAreaView,
 } from "react-native";
 import { Camera } from 'expo-camera';
 import { BarCodeScanner } from 'expo-barcode-scanner';
@@ -66,7 +67,7 @@ const QRScannerModal = ({ visible, onClose, onScanSuccess }) => {
 
   return (
     <Modal visible={visible} transparent={false} animationType="slide">
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" />
         <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
           <MaterialIcons name="close" size={wp('8%')} color="#fff" />
@@ -93,7 +94,7 @@ const QRScannerModal = ({ visible, onClose, onScanSuccess }) => {
             <Text style={styles.rescanButtonText}>Tap to Scan Again</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 };

@@ -13,7 +13,6 @@ import { GlobalProvider } from '../components/globalProvider';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../utils/language/i18config';
 
-
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
@@ -54,25 +53,19 @@ export default function RootLayout() {
 
   return (
     <I18nextProvider i18n={i18n}>
-    <GlobalProvider>
-    <GestureHandlerRootView style={styles.container}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="signup" options={{ gestureEnabled: false }} /> // Added signup route
-        <Stack.Screen name="login" options={{ gestureEnabled: false }} /> // Added login route
-
- 
-          <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-
-        </Stack>
-      </ThemeProvider>
-    </GestureHandlerRootView>
-    </GlobalProvider>
+      <GlobalProvider>
+        <GestureHandlerRootView style={styles.container}>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="signup" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+            </Stack>
+          </ThemeProvider>
+        </GestureHandlerRootView>
+      </GlobalProvider>
     </I18nextProvider>
-
-    
-    
   );
 }
 

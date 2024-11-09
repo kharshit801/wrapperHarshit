@@ -1,7 +1,8 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+// Set the notification handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -10,107 +11,107 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Custom hook for budget notifications
 export const useBudgetNotifications = () => {
+  const [notificationData, setNotificationData] = useState({}); // Track last notification time and count for each category
+
   const requestNotificationPermissions = useCallback(async () => {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('budget-alerts', {
-        name: 'Budget Alerts',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
-      });
-    }
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') {
-      console.log('Failed to get notification permissions');
+    try {
+      if (Platform.OS === 'android') {
+        const channelResult = await Notifications.setNotificationChannelAsync('budget-alerts', {
+          name: 'Budget Alerts',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
+        console.log('Notification channel created:', channelResult); // Log channel creation
+      }
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      console.log('Existing notification status:', existingStatus); // Log existing status
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        console.log('Failed to get notification permissions');
+        return false;
+      }
+      console.log('Notification permissions granted');
+      return true;
+    } catch (error) {
+      console.error('Error requesting notification permissions:', error);
       return false;
     }
-    return true;
   }, []);
 
   useEffect(() => {
     requestNotificationPermissions();
   }, [requestNotificationPermissions]);
 
-  const sendBudgetNotification = async (budget) => {
-    const spent = spentByCategory[budget.category] || 0; // Get spent amount for the category
-    const percentage = budget.limit > 0 ? (spent / budget.limit) * 100 : 0; // Check if limit is greater than 0
+  const sendBudgetNotification = async (budget, spentByCategory = {}) => { // Default to empty object
+    try {
+      const spent = spentByCategory[budget.category] || 0; // Ensure spentByCategory is defined
+      const percentage = budget.limit > 0 ? (spent / budget.limit) * 100 : 0;
 
-    console.log(`Sending notification for budget: ${budget.title}, spent: ${spent}, limit: ${budget.limit}, percentage: ${percentage}`);
+      console.log(`Sending notification for budget: ${budget.title}, spent: ${spent}, limit: ${budget.limit}, percentage: ${percentage}`); // Log notification details
 
-    if (percentage > 0) {
-        const getNotificationContent = () => {
-            if (percentage >= 100) {
-                return {
-                    title: '🚨 Budget Exceeded!',
-                    body: `Your ${budget.title} budget has been exceeded! (${percentage.toFixed(0)}% used)`,
-                    priority: 'high',
-                    sound: 'default',
-                    badge: 1,
-                    channelId: 'budget-alerts',
-                };
-            }
-            if (percentage >= 90) {
-                return {
-                    title: '⚠️ Critical Budget Alert',
-                    body: `Your ${budget.title} budget is nearly depleted! (${percentage.toFixed(0)}% used)`,
-                    priority: 'high',
-                    sound: 'default',
-                    badge: 1,
-                    channelId: 'budget-alerts',
-                };
-            }
-            if (percentage >= 75) {
-                return {
-                    title: '⚡ Budget Warning',
-                    body: `Your ${budget.title} budget is at ${percentage.toFixed(0)}% used`,
-                    priority: 'medium',
-                    sound: 'default',
-                    badge: 1,
-                    channelId: 'budget-alerts',
-                };
-            } else {
-                console.log(`No notification content to send for budget: ${budget.title}`);
-            }
-            return null;
+      // Check if enough time has passed since the last notification
+      const now = Date.now();
+      const { lastSentTime = 0, count = 0 } = notificationData[budget.category] || {};
+      const notificationInterval = 2 * 60 * 1000; // 2 minutes
+
+      if (percentage >= 75 && (now - lastSentTime) > notificationInterval && count < 2) { // Adjust the threshold as needed
+        const notificationContent = {
+          title: percentage >= 100 ? '🚨 Budget Exceeded!' : '⚠️ Budget Alert',
+          body: `Your ${budget.title} budget is at ${percentage.toFixed(0)}% used.`,
+          priority: 'high',
+          sound: 'default',
+          badge: 1,
+          channelId: 'budget-alerts',
         };
 
-        const notificationContent = getNotificationContent();
-        if (notificationContent) {
-            try {
-                await Notifications.scheduleNotificationAsync({
-                    content: {
-                        ...notificationContent,
-                        data: {
-                            category: budget.category,
-                            percentage: percentage,
-                            timestamp: new Date().toISOString(),
-                        },
-                    },
-                    trigger: null,
-                });
-                console.log('Notification scheduled successfully'); // Debug log
-            } catch (error) {
-                console.error('Error sending notification:', error);
-            }
-        } else {
-            console.log('No notification content to send'); // Debug log
-        }
-    } else {
-        console.log(`No notification to send for budget: ${budget.title}, percentage: ${percentage}`); // Debug log
-    }
-};
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            ...notificationContent,
+            data: {
+              category: budget.category,
+              percentage: percentage,
+              title: budget.title,
+            },
+          },
+          trigger: null, // Send immediately
+        });
+        console.log('Notification scheduled successfully'); // Log successful scheduling
 
-  const checkBudgetThresholds = useCallback((budgets) => {
+        // Update the last notification time and count for this category
+        setNotificationData((prev) => ({
+          ...prev,
+          [budget.category]: {
+            lastSentTime: now,
+            count: (prev[budget.category]?.count || 0) + 1, // Increment count
+          },
+        }));
+      } else {
+        console.log(`No notification to send for budget: ${budget.title}, percentage: ${percentage}`); // Log if no notification
+      }
+    } catch (error) {
+      console.error('Error sending notification:', error);
+    }
+  };
+
+  const checkBudgetThresholds = useCallback((budgets, spentByCategory = {}) => { // Default to empty object
+    if (!Array.isArray(budgets)) {
+      console.error('Budgets is not an array:', budgets);
+      return; 
+    }
+  
     budgets.forEach((budget) => {
-      const percentage = (budget.spent / budget.limit) * 100;
+      const spent = spentByCategory[budget.category] || 0; // Ensure spentByCategory is defined
+      const percentage = budget.limit > 0 ? (spent / budget.limit) * 100 : 0;
+      // console.log(`Checking budget: ${budget.title}, spent: ${spent}, limit: ${budget.limit}, percentage: ${percentage}`); // Log budget check
       if (percentage >= 75) {
-        sendBudgetNotification(budget);
+        sendBudgetNotification(budget, spentByCategory);
       }
     });
   }, [sendBudgetNotification]);
@@ -122,9 +123,11 @@ export const useBudgetNotifications = () => {
   };
 };
 
+// Notification listener component
 export const BudgetNotificationListener = ({ onNotificationReceived }) => {
   useEffect(() => {
     const subscription = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('Notification received:', notification); // Log received notification
       if (onNotificationReceived) {
         onNotificationReceived(notification);
       }

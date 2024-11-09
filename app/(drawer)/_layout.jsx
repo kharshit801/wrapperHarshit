@@ -37,7 +37,7 @@ const CustomDrawerContent = (props) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isCurrencyModalVisible, setIsCurrencyModalVisible] = useState(false);
-  const { state, dispatch, changeLanguage,importTransferData } = useGlobalContext();
+  const { state, dispatch, changeLanguage, importTransferData } = useGlobalContext();
   const { t, i18n } = useTranslation();
   const [isQRScannerVisible, setIsQRScannerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -50,7 +50,7 @@ const CustomDrawerContent = (props) => {
     try {
       await setDefaultCurrency(currencyCode);
       dispatch({ type: 'SET_DEFAULT_CURRENCY', payload: currencyCode });
-      
+
       const rates = await fetchExchangeRates();
       if (rates) {
         dispatch({
@@ -59,7 +59,7 @@ const CustomDrawerContent = (props) => {
         });
       }
 
-      
+
     } catch (error) {
       Alert.alert(
         t('Error'),
@@ -74,7 +74,7 @@ const CustomDrawerContent = (props) => {
     try {
       await backupService.exportToMongoDB();
       alert('Backup completed successfully');
-      await   loadExpensesFromDB();
+      await loadExpensesFromDB();
 
     } catch (error) {
       alert('Backup failed: ' + error.message);
@@ -84,12 +84,12 @@ const CustomDrawerContent = (props) => {
   const handleLanguageSelect = (language) => {
     console.log("Current language in state:", state.language);
     changeLanguage(language);
-    setIsModalVisible(false); 
+    setIsModalVisible(false);
     console.log("Language changed to", language);
   };
 
   const handleScanQR = async () => {
-    
+
     setIsQRScannerVisible(true);
 
   };
@@ -124,7 +124,7 @@ const CustomDrawerContent = (props) => {
           setDataImported(false);
         }
       };
-  
+
       reloadData();
     }
   }, [dataImported, loadExpensesFromDB]);
@@ -167,7 +167,43 @@ const CustomDrawerContent = (props) => {
                 }}
               />
             ))}
+
           <DrawerItem
+            label={t('Language')}
+            icon={() => <Ionicons name="language" size={wp("6%")} color={"#000000"} />}
+            onPress={() => setIsModalVisible(true)}
+            labelStyle={{ color: COLORS.background }}
+          />
+          <DrawerItem
+            label={t('Currency Settings')}
+            icon={() => <MaterialIcons name="money" size={wp("6%")} color="#1f1f1f" />}
+            onPress={() => setIsCurrencyModalVisible(true)}
+            labelStyle={{ color: COLORS.background }}
+          />
+          <DrawerItem
+            label={t('Export Data')}
+            icon={() => <Ionicons name="exit" size={wp("6%")} color={"#000000"} />}
+            onPress={() => setIsExportModalVisible(true)}
+            labelStyle={{ color: COLORS.background }}
+          />
+          
+          <DrawerItem
+            label={t('Backup')}
+            icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#1f1f1f" />}
+            onPress={() => router.push('/signup')}
+            labelStyle={{ color: COLORS.background }}
+          />
+
+          <DrawerItem
+            label={t('Scan QR')}
+            icon={() => <MaterialIcons name="qr-code-scanner" size={wp("6%")} color={"#000000"} />}
+            onPress={handleScanQR}
+            labelStyle={{ color: COLORS.background }}
+          />
+
+
+          <DrawerItem
+
             label={t('Help')}
             icon={() => <MaterialIcons name="help-outline" size={wp("6%")} color={"#000000"} />}
             onPress={() => Linking.openURL("https://forms.gle/5iJKWrfCXMsviTiL8")}
@@ -179,37 +215,7 @@ const CustomDrawerContent = (props) => {
             onPress={() => Linking.openURL("https://forms.gle/5iJKWrfCXMsviTiL8")}
             labelStyle={{ color: COLORS.background }}
           />
-          <DrawerItem
-            label={t('Language')}
-            icon={() => <Ionicons name="language" size={wp("6%")} color={"#000000"} />}
-            onPress={() => setIsModalVisible(true)}
-            labelStyle={{ color: COLORS.background }}
-          />
-          <DrawerItem
-            label={t('Scan QR')}
-            icon={() => <MaterialIcons name="qr-code-scanner" size={wp("6%")} color={"#000000"} />}
-            onPress={handleScanQR}
-            labelStyle={{ color: COLORS.background }}
-          />
-          <DrawerItem
-            label={t('Export Data')}
-            icon={() => <Ionicons name="exit" size={wp("6%")} color={"#000000"} />}
-            onPress={() => setIsExportModalVisible(true)}
-            labelStyle={{ color: COLORS.background }}
-          />
-           <DrawerItem
-                label={t('Currency Settings')}
-                icon={() => <MaterialIcons name="money" size={wp("6%")} color="#1f1f1f" />}
-                onPress={() => setIsCurrencyModalVisible(true)}
-                labelStyle={{ color: COLORS.background }}
-            />
-          <DrawerItem
-            label={t('Backup')}
-            icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#1f1f1f" />}
-            onPress={() => router.push('/signup')}
-            labelStyle={{ color: COLORS.background }}
-          />
-           
+
         </View>
       </DrawerContentScrollView>
 
@@ -245,25 +251,25 @@ const CustomDrawerContent = (props) => {
       </Modal>
 
       <CurrencySelector
-  visible={isCurrencyModalVisible}
-  onClose={() => setIsCurrencyModalVisible(false)}
-  onSelectCurrency={handleCurrencyChange}
-  currentCurrency={state.defaultCurrency}
-  loading={loading}
-  t={t}
-/>
-<QRScannerModel
-  visible={isQRScannerVisible}
-  onClose={() => setIsQRScannerVisible(false)}
-  onScanSuccess={handleScanSuccess}
-/>
+        visible={isCurrencyModalVisible}
+        onClose={() => setIsCurrencyModalVisible(false)}
+        onSelectCurrency={handleCurrencyChange}
+        currentCurrency={state.defaultCurrency}
+        loading={loading}
+        t={t}
+      />
+      <QRScannerModel
+        visible={isQRScannerVisible}
+        onClose={() => setIsQRScannerVisible(false)}
+        onScanSuccess={handleScanSuccess}
+      />
 
-      <ExportDataModal 
+      <ExportDataModal
         visible={isExportModalVisible}
         onClose={() => setIsExportModalVisible(false)}
       />
     </>
-    
+
   );
 };
 

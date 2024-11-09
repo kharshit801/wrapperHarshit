@@ -4,7 +4,11 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  ActivityIndicator
+  ActivityIndicator,
+  Image,
+  TouchableOpacity,
+  StatusBar
+
 } from 'react-native';
 import { COLORS } from '../constants/theme';
 import {
@@ -14,11 +18,15 @@ import {
 import Header from '../components/commonheader';
 import { useGlobalContext } from '../components/globalProvider';
 import QRCode from 'react-native-qrcode-svg';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 const QRScreen = () => {
   const { generateTransferData } = useGlobalContext();
   const [qrData, setQrData] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+
+  const router=useRouter();
 
   useEffect(() => {
     const loadData = async () => {
@@ -36,7 +44,13 @@ const QRScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header searchIconShown={false} />
+       <StatusBar translucent={false} backgroundColor={COLORS.background} barStyle="light-content" />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => router.push('(tabs)')}>
+          <Ionicons name="arrow-back" size={wp('6%')} color={COLORS.text.primary} />
+          </TouchableOpacity>
+          <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
+      </View>
       <View style={styles.content}>
         <Text style={styles.title}>Scan QR Code</Text>
         <Text style={styles.subtitle}>
@@ -121,6 +135,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: hp('4%'),
     paddingHorizontal: wp('10%'),
+  },
+  logo: {
+    width: wp('20%'),
+    height: wp('8%'),
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: wp('4%'),
+    backgroundColor: COLORS.background,
+    gap:wp('27%')
+  },
+  logo: {
+    width: wp('20%'),
+    height: wp('8%'),
+  },
+  menuButton: {
+    padding: wp('2%'),
+  },
+  searchButton: {
+    padding: wp('2%'),
   },
 });
 

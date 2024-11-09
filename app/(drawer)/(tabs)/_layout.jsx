@@ -1,6 +1,5 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../../constants/theme';
 import {
@@ -92,6 +91,16 @@ useEffect(() => {
           ),
         }}
       />
+       {/* <Tabs.Screen
+        name="qrCode"
+        options={{
+          title: t('Qr Code'),
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="wallet" size={wp('6%')} color={color} />
+          ),
+        }}
+      /> */}
+      
     </Tabs>
     </SafeAreaView>
   );

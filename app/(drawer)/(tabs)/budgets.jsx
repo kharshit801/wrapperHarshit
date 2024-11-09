@@ -96,8 +96,8 @@ const BudgetsScreen = () => {
   }, [state.budgets]);
 
   useEffect(() => {
-    checkBudgetThresholds(budgets);
-  }, [budgets, checkBudgetThresholds]);
+    checkBudgetThresholds(budgets, spentByCategory); // Pass spentByCategory her
+  }, [budgets, spentByCategory, checkBudgetThresholds]);
 
   useEffect(() => {
     const requestPermissionsAndCheckBudgets = async () => {

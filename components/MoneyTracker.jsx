@@ -1,8 +1,5 @@
-// MoneyTracker.js
-import TransactionParser from "./TransactionParser";
 import ReceiptParser from "../utils/ReceiptParser";
 import LottieView from "lottie-react-native";
-import GeminiTransactionParser from "../utils/GeminiTransactionParser";
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -18,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../constants/theme";
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
+import { formatCurrency, convertAmount } from '../utils/currencyService';
 
 import {
   widthPercentageToDP as wp,
@@ -40,9 +38,8 @@ import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const MoneyTracker = () => {
-  const { onSave } = useGlobalContext();
+  const { onSave, state, dispatch } = useGlobalContext();
   const navigation = useNavigation();
-  const { state, dispatch } = useGlobalContext();
   const [showCalculator, setShowCalculator] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const { t, i18n } = useTranslation();
@@ -54,6 +51,37 @@ const MoneyTracker = () => {
       i18n.changeLanguage(state.language);
     }
   }, [state.language]);
+
+  // Filter transactions for current month
+  const currentMonthTransactions = state.transactions.filter((transaction) => {
+    const transactionDate = parseISO(transaction.date);
+    const monthStart = startOfMonth(parseISO(state.currentMonth));
+    const monthEnd = endOfMonth(parseISO(state.currentMonth));
+
+    return isWithinInterval(transactionDate, {
+      start: monthStart,
+      end: monthEnd,
+    });
+  });
+
+  // Calculate summary for current month with currency conversion
+  const currentMonthSummary = currentMonthTransactions.reduce((summary, transaction) => {
+    const convertedAmount = convertAmount(
+      parseFloat(transaction.amount),
+      transaction.currency || 'USD',
+      state.defaultCurrency,
+      state.exchangeRates
+    );
+
+    if (transaction.type === 'EXPENSE') {
+      summary.expense += convertedAmount;
+    } else if (transaction.type === 'INCOME') {
+      summary.income += convertedAmount;
+    }
+    return summary;
+  }, { expense: 0, income: 0 });
+
+  currentMonthSummary.total = currentMonthSummary.income - currentMonthSummary.expense;
 
   const showImageSourceOptions = () => {
     Alert.alert(
@@ -75,6 +103,7 @@ const MoneyTracker = () => {
       ]
     );
   };
+
 
   const pickImage = async (source) => {
     try {
@@ -128,7 +157,6 @@ const MoneyTracker = () => {
       Alert.alert("Error", "Failed to capture/select image");
     }
   };
-
   const handleOCR = async (base64Image) => {
     try {
       const parser = new ReceiptParser();
@@ -136,7 +164,7 @@ const MoneyTracker = () => {
 
       Alert.alert(
         "Receipt Processed",
-        `Amount: ₹${details.amount}\nCategory: ${details.category}\nAccount: ${details.account}\n\n${details.notes}`,
+        `Amount: ${formatCurrency(details.amount, state.defaultCurrency)}\nCategory: ${details.category}\nAccount: ${details.account}\n\n${details.notes}`,
         [
           {
             text: "Add Transaction",
@@ -148,14 +176,11 @@ const MoneyTracker = () => {
                 category: details.category,
                 account: details.account,
                 note: details.notes || "",
+                currency: state.defaultCurrency, // Add default currency
               };
 
-
               try {
-                // Save to database using onSave
                 await onSave(formattedTransaction);
-
-                // confirmation
                 Alert.alert("Success", "Transaction added successfully!", [
                   { text: "OK" },
                 ]);
@@ -168,7 +193,6 @@ const MoneyTracker = () => {
               }
             },
           },
-      
           {
             text: "Cancel",
             style: "cancel",
@@ -184,7 +208,6 @@ const MoneyTracker = () => {
     }
   };
 
-
   const handleEdit = (transaction) => {
     setEditingTransaction(transaction);
     setShowCalculator(true);
@@ -192,17 +215,23 @@ const MoneyTracker = () => {
 
   const handleSaveTransaction = async (transactionData) => {
     try {
-      await onSave(transactionData);
+      // Add currency to transaction data if not present
+      const transactionWithCurrency = {
+        ...transactionData,
+        currency: transactionData.currency || state.defaultCurrency,
+      };
+
+      await onSave(transactionWithCurrency);
       if (editingTransaction) {
         dispatch({
           type: "EDIT_TRANSACTION",
-          payload: { id: editingTransaction.id, ...transactionData },
+          payload: { id: editingTransaction.id, ...transactionWithCurrency },
         });
         setEditingTransaction(null);
       } else {
         const newTransaction = {
           id: Date.now(),
-          ...transactionData,
+          ...transactionWithCurrency,
         };
         dispatch({ type: "ADD_TRANSACTION", payload: newTransaction });
       }
@@ -212,30 +241,6 @@ const MoneyTracker = () => {
       Alert.alert("Error", "Failed to save transaction. Please try again.");
     }
   };
-
-  // Filter transactions for current month
-  const currentMonthTransactions = state.transactions.filter((transaction) => {
-    const transactionDate = parseISO(transaction.date);
-    const monthStart = startOfMonth(parseISO(state.currentMonth));
-    const monthEnd = endOfMonth(parseISO(state.currentMonth));
-
-    return isWithinInterval(transactionDate, {
-      start: monthStart,
-      end: monthEnd,
-    });
-  });
-
-  // Calculate summary for current month
-  const currentMonthSummary = {
-    expense: currentMonthTransactions
-      .filter((t) => t.type === "EXPENSE")
-      .reduce((sum, t) => sum + t.amount, 0),
-    income: currentMonthTransactions
-      .filter((t) => t.type === "INCOME")
-      .reduce((sum, t) => sum + t.amount, 0),
-  };
-  currentMonthSummary.total =
-    currentMonthSummary.income - currentMonthSummary.expense;
 
   const handlePreviousMonth = () => {
     dispatch({ type: "PREVIOUS_MONTH" });
@@ -278,18 +283,18 @@ const MoneyTracker = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Summary Section */}
+      {/* Summary Section with formatted currency */}
       <View style={styles.summary}>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>{t("Expenses")}</Text>
           <Text style={[styles.summaryAmount, { color: "#ff6b6b" }]}>
-            ₹{currentMonthSummary.expense.toFixed(2)}
+            {formatCurrency(currentMonthSummary.expense, state.defaultCurrency)}
           </Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>{t("Income")}</Text>
           <Text style={[styles.summaryAmount, { color: "#51cf66" }]}>
-            ₹{currentMonthSummary.income.toFixed(2)}
+            {formatCurrency(currentMonthSummary.income, state.defaultCurrency)}
           </Text>
         </View>
         <View style={styles.summaryItem}>
@@ -300,7 +305,7 @@ const MoneyTracker = () => {
               { color: currentMonthSummary.total >= 0 ? "#51cf66" : "#ff6b6b" },
             ]}
           >
-            ₹{currentMonthSummary.total.toFixed(2)}
+            {formatCurrency(currentMonthSummary.total, state.defaultCurrency)}
           </Text>
         </View>
       </View>
@@ -320,8 +325,17 @@ const MoneyTracker = () => {
           currentMonthTransactions.map((transaction) => (
             <TransactionRecord
               key={transaction.id}
-              transaction={transaction}
+              transaction={{
+                ...transaction,
+                convertedAmount: convertAmount(
+                  parseFloat(transaction.amount),
+                  transaction.currency || 'USD',
+                  state.defaultCurrency,
+                  state.exchangeRates
+                )
+              }}
               onEdit={handleEdit}
+              defaultCurrency={state.defaultCurrency}
             />
           ))
         )}
@@ -357,10 +371,14 @@ const MoneyTracker = () => {
           }}
           onSave={handleSaveTransaction}
           initialData={editingTransaction}
+          defaultCurrency={state.defaultCurrency}
         />
       </Modal>
     </SafeAreaView>
   );
+
+
+  
 };
 
 const styles = StyleSheet.create({

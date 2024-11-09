@@ -111,7 +111,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   const [isLoadingApps, setIsLoadingApps] = useState(false);
   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
   const [isProcessing, setIsProcessing] = useState(false);
-  const { onSave } = useGlobalContext();
+  const { onSave,state} = useGlobalContext();
   
   // Transfer-specific states
   const [fromAccount, setFromAccount] = useState(initialData?.fromAccount || '');
@@ -394,7 +394,8 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       note,
       date: selectedDate.toISOString(),
       lastModified: new Date().toISOString(),
-      isUpdate: isEditMode
+      isUpdate: isEditMode,
+
     };
 
     onSave(transactionData);

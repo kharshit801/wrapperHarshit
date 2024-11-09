@@ -116,6 +116,7 @@ export const PaymentService = {
     try {
       if (Platform.OS === 'android') {
         try {
+          // Use IntentLauncher to check if the package exists for Android
           const result = await IntentLauncher.getApplicationInfo(app.package);
           return !!result;
         } catch {
@@ -131,5 +132,17 @@ export const PaymentService = {
       console.error('Error checking app installation:', error);
       return false;
     }
+  },
+
+  checkInstalledApps: async () => {
+    const installedApps = [];
+    for (const app of UPI_APPS) {
+      const isInstalled = await PaymentService.isAppInstalled(app);
+      if (isInstalled) {
+        installedApps.push(app);
+      }
+    }
+    return installedApps;
   }
 };
+

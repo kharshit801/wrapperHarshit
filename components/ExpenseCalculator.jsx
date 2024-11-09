@@ -152,9 +152,11 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   const checkInstalledApps = async () => {
     setIsLoadingApps(true);
     try {
+     
+
       const installedApps = [];
       for (const app of UPI_APPS) {
-        const isInstalled = await PaymentService.isAppInstalled(app);
+        const isInstalled = await PaymentService.checkInstalledApps(app);
         if (isInstalled) {
           installedApps.push(app);
         }
@@ -199,60 +201,26 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         saveTransaction();
       }, 100);
     } else if (paymentMethod === 'upi') {
-      if (availableUPIApps.length === 0) {
-        Alert.alert(
-          'No UPI Apps',
-          'No UPI payment apps found on your device. Please install a UPI app to continue.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
+     
       setShowUPIAppsModal(true);
     }
   };
 
   const handleUPIApp = async (app) => {
     try {
-      setShowUPIAppsModal(false);
-      setPaymentPending(true);
-
-      const result = await PaymentService.handleUPIPayment(
-        app,
-        amount,
-        note || category,
-        MERCHANT_UPI
-      );
-
-      if (result) {
-        Alert.alert(
-          'Payment Confirmation',
-          'Did you complete the payment successfully?',
-          [
-            {
-              text: 'No',
-              onPress: () => {
-                setPaymentPending(false);
-                setShowPaymentModal(true);
-              },
-              style: 'cancel',
-            },
-            {
-              text: 'Yes',
-              onPress: () => {
-                saveTransaction();
-              },
-            },
-          ],
-          { cancelable: false }
-        );
-      } else {
-        Alert.alert('Error', 'Failed to open payment app');
-        setPaymentPending(false);
-      }
+      setShowUPIAppsModal(false);  // Close any modal if needed
+      setPaymentPending(true);  // Set loading state to true (if using)
+  
+      const appSpecificUrl = app.uriSchema;  // Get the URI schema (e.g., 'gpay://')
+  
+      // Open the app directly without checking if it's installed
+      await Linking.openURL(appSpecificUrl);
+  
+      setPaymentPending(false); 
+      saveTransaction(); // Reset loading state
     } catch (error) {
-      console.error('Payment error:', error);
-      Alert.alert('Error', 'Failed to process payment');
-      setPaymentPending(false);
+      console.error('Error opening app:', error);
+      setPaymentPending(false);  // Reset loading state on error
     }
   };
 

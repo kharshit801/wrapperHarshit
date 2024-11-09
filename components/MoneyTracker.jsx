@@ -1,6 +1,6 @@
 import ReceiptParser from "../utils/ReceiptParser";
 import LottieView from "lottie-react-native";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,14 +9,16 @@ import {
   SafeAreaView,
   StatusBar,
   Modal,
-  Alert,Button,Linking
+  Alert,
+  Button,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../constants/theme";
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
-import { formatCurrency, convertAmount } from '../utils/currencyService';
-import QRCode from 'react-native-qrcode-svg';
+import { formatCurrency, convertAmount } from "../utils/currencyService";
+import QRCode from "react-native-qrcode-svg";
 
 import {
   widthPercentageToDP as wp,
@@ -45,6 +47,7 @@ const MoneyTracker = () => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const { t, i18n } = useTranslation();
 
+
   useEffect(() => {
     if (state.language && i18n.language !== state.language) {
       i18n.changeLanguage(state.language);
@@ -65,46 +68,28 @@ const MoneyTracker = () => {
     });
   });
 
-
-  useEffect(() => {
-    const openGooglePay = async () => {
-      const url = 'gpay://'; // URL scheme for Google Pay
-      const supported = await Linking.canOpenURL(url);
-
-      if (supported) {
-        Linking.openURL(url);  // Opens Google Pay
-      } else {
-        console.log('Google Pay is not installed.');
-      }
-    };
-
-    openGooglePay();
-  }, []);
-  
-
- 
-
-
- 
-
   // Calculate summary for current month with currency conversion
-  const currentMonthSummary = currentMonthTransactions.reduce((summary, transaction) => {
-    const convertedAmount = convertAmount(
-      parseFloat(transaction.amount),
-      transaction.currency || 'USD',
-      state.defaultCurrency,
-      state.exchangeRates
-    );
+  const currentMonthSummary = currentMonthTransactions.reduce(
+    (summary, transaction) => {
+      const convertedAmount = convertAmount(
+        parseFloat(transaction.amount),
+        transaction.currency || "USD",
+        state.defaultCurrency,
+        state.exchangeRates
+      );
 
-    if (transaction.type === 'EXPENSE') {
-      summary.expense += convertedAmount;
-    } else if (transaction.type === 'INCOME') {
-      summary.income += convertedAmount;
-    }
-    return summary;
-  }, { expense: 0, income: 0 });
+      if (transaction.type === "EXPENSE") {
+        summary.expense += convertedAmount;
+      } else if (transaction.type === "INCOME") {
+        summary.income += convertedAmount;
+      }
+      return summary;
+    },
+    { expense: 0, income: 0 }
+  );
 
-  currentMonthSummary.total = currentMonthSummary.income - currentMonthSummary.expense;
+  currentMonthSummary.total =
+    currentMonthSummary.income - currentMonthSummary.expense;
 
   const showImageSourceOptions = () => {
     Alert.alert(
@@ -126,7 +111,6 @@ const MoneyTracker = () => {
       ]
     );
   };
-
 
   const pickImage = async (source) => {
     try {
@@ -187,7 +171,12 @@ const MoneyTracker = () => {
 
       Alert.alert(
         "Receipt Processed",
-        `Amount: ${formatCurrency(details.amount, state.defaultCurrency)}\nCategory: ${details.category}\nAccount: ${details.account}\n\n${details.notes}`,
+        `Amount: ${formatCurrency(
+          details.amount,
+          state.defaultCurrency
+        )}\nCategory: ${details.category}\nAccount: ${details.account}\n\n${
+          details.notes
+        }`,
         [
           {
             text: "Add Transaction",
@@ -352,10 +341,10 @@ const MoneyTracker = () => {
                 ...transaction,
                 convertedAmount: convertAmount(
                   parseFloat(transaction.amount),
-                  transaction.currency || 'USD',
+                  transaction.currency || "USD",
                   state.defaultCurrency,
                   state.exchangeRates
-                )
+                ),
               }}
               onEdit={handleEdit}
               defaultCurrency={state.defaultCurrency}
@@ -371,13 +360,12 @@ const MoneyTracker = () => {
         onLongPress={showImageSourceOptions}
       >
         <LottieView
-          source={require('../assets/animation/camera_add.json')}
+          source={require("../assets/animation/camera_add.json")}
           autoPlay
           loop={false}
           style={styles.animationAdd}
         />
       </TouchableOpacity>
-      <Button title="Open Google Pay" onPress={() => Linking.openURL('gpay://')} />
 
       <Modal
         visible={showCalculator}
@@ -400,9 +388,6 @@ const MoneyTracker = () => {
       </Modal>
     </SafeAreaView>
   );
-
-
-  
 };
 
 const styles = StyleSheet.create({
@@ -446,9 +431,9 @@ const styles = StyleSheet.create({
     minHeight: hp("50%"),
   },
 
-  animation:{
-    width:wp(50),
-    height:wp(50)
+  animation: {
+    width: wp(50),
+    height: wp(50),
   },
 
   emptyStateText: {
@@ -473,7 +458,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
   },
-  animationAdd:{
+  animationAdd: {
     width: wp("14%"),
     height: wp("14%"),
   },

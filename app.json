@@ -13,7 +13,7 @@
       "backgroundColor": "#fff"
     },
     "ios": {
-  "icon": "./assets/images/logo.png",
+  "icon": "./assets/images/logoWrapper.png",
   "supportsTablet": true,
   "bundleIdentifier": "com.Kharshit801.wrapper",
   "buildNumber": "1.0.0",

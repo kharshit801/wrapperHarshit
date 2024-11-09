@@ -26,7 +26,7 @@ import {
 } from "../../../components/Budgetnotification";
 
 const BudgetsScreen = () => {
-  const { state, updateBudget, fetchSpentByCategory } = useGlobalContext();
+  const { state, updateBudget, fetchSpentByCategory, convertAmount } = useGlobalContext();
   const { t, i18n } = useTranslation();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
@@ -39,6 +39,10 @@ const BudgetsScreen = () => {
     sendBudgetNotification,
     requestNotificationPermissions,
   } = useBudgetNotifications();
+
+  // Get the default currency and symbol
+  const defaultCurrency = state.defaultCurrency || 'USD';
+  const currencySymbol = state.currencies[defaultCurrency]?.symbol || defaultCurrency;
 
   // Initialize budgets for all categories
   useEffect(() => {
@@ -96,7 +100,7 @@ const BudgetsScreen = () => {
   }, [state.budgets]);
 
   useEffect(() => {
-    checkBudgetThresholds(budgets, spentByCategory); // Pass spentByCategory her
+    checkBudgetThresholds(budgets, spentByCategory);
   }, [budgets, spentByCategory, checkBudgetThresholds]);
 
   useEffect(() => {
@@ -115,8 +119,9 @@ const BudgetsScreen = () => {
     const fetchSpentData = async () => {
       try {
         const spentData = await fetchSpentByCategory();
-        const spentMap = spentData.reduce((acc, { category, totalSpent }) => {
-          acc[category] = totalSpent;
+        const spentMap = spentData.reduce((acc, { category, totalSpent, currency }) => {
+          const convertedSpent = convertAmount(totalSpent, currency, defaultCurrency);
+          acc[category] = (acc[category] || 0) + convertedSpent;
           return acc;
         }, {});
         setSpentByCategory(spentMap);
@@ -126,7 +131,7 @@ const BudgetsScreen = () => {
     };
 
     fetchSpentData();
-  }, [fetchSpentByCategory]);
+  }, [fetchSpentByCategory, convertAmount, defaultCurrency]);
 
   const getCategoryIcon = (category) => {
     const iconMap = {
@@ -146,14 +151,17 @@ const BudgetsScreen = () => {
     return iconMap[category] || "dot-circle";
   };
 
+  // Total budget and spent calculations with proper currency handling
   const totalBudget = budgets.reduce(
     (total, budget) => total + budget.limit,
     0
   );
+
   const totalSpent = Object.values(spentByCategory).reduce(
     (total, spent) => total + spent,
     0
   );
+
   const totalRemaining = totalBudget - totalSpent;
   const spentPercentage =
     totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
@@ -175,7 +183,7 @@ const BudgetsScreen = () => {
     if (selectedBudget && newLimit) {
       const updatedBudget = {
         ...selectedBudget,
-        limit: parseInt(newLimit, 10),
+        limit: parseFloat(newLimit),
       };
 
       const updatedBudgets = budgets.map((budget) =>
@@ -183,7 +191,7 @@ const BudgetsScreen = () => {
       );
       setBudgets(updatedBudgets);
       updateBudget(updatedBudgets);
-      sendBudgetNotification(updatedBudget); // Ensure this is called after updating the budget
+      sendBudgetNotification(updatedBudget);
 
       setModalVisible(false);
       setSelectedBudget(null);
@@ -192,7 +200,7 @@ const BudgetsScreen = () => {
   };
 
   const handleLimitChange = (text) => {
-    const numericValue = text.replace(/[^0-9]/g, "");
+    const numericValue = text.replace(/[^0-9.]/g, "");
     setNewLimit(numericValue);
   };
 
@@ -204,7 +212,7 @@ const BudgetsScreen = () => {
   };
 
   const renderProgressBar = (spent, limit) => {
-    const percentage = Math.min((spent / limit) * 100, 100);
+    const percentage = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
     const status = getBudgetStatus(spent, limit);
 
     return (
@@ -222,7 +230,7 @@ const BudgetsScreen = () => {
   const renderBudgetCard = (budget) => {
     const spent = spentByCategory[budget.category] || 0;
     const status = getBudgetStatus(spent, budget.limit);
-    const percentageUsed = ((spent / budget.limit) * 100).toFixed(0);
+    const percentageUsed = budget.limit > 0 ? ((spent / budget.limit) * 100).toFixed(0) : 0;
 
     return (
       <TouchableOpacity key={budget.id} style={styles.budgetCard}>
@@ -256,7 +264,9 @@ const BudgetsScreen = () => {
             </View>
             <View style={styles.budgetProgressInfo}>
               <Text style={styles.budgetProgress}>
-                ₹{spent.toLocaleString()} / ₹{budget.limit.toLocaleString()}
+                {currencySymbol}
+                {spent.toFixed(2).toLocaleString()} / {currencySymbol}
+                {budget.limit.toLocaleString()}
               </Text>
               <Text style={[styles.budgetStatus, { color: status.color }]}>
                 {status.message}
@@ -287,7 +297,8 @@ const BudgetsScreen = () => {
               </Text>
             </View>
             <Text style={styles.totalBalanceAmount}>
-              ₹{totalBudget.toLocaleString()}
+              {currencySymbol}
+              {totalBudget.toLocaleString()}
             </Text>
           </View>
 
@@ -302,14 +313,16 @@ const BudgetsScreen = () => {
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>{t("spent")}</Text>
               <Text style={[styles.summaryAmount, { color: "#ff6b6b" }]}>
-                ₹{totalSpent.toLocaleString()}
+                {currencySymbol}
+                {totalSpent.toFixed(2).toLocaleString()}
               </Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>{t("remaining")}</Text>
               <Text style={[styles.summaryAmount, { color: "#51cf66" }]}>
-                ₹{totalRemaining.toLocaleString()}
+                {currencySymbol}
+                {totalRemaining.toFixed(2).toLocaleString()}
               </Text>
             </View>
           </View>
@@ -351,25 +364,9 @@ const BudgetsScreen = () => {
           )}
         </View>
 
-        <TouchableOpacity style={styles.addBudgetButton}>
-          <View style={styles.addButtonContent}>
-            <View style={styles.addIconContainer}>
-              <Ionicons name="add" size={wp("6%")} color={COLORS.secondary} />
-            </View>
-            <View style={styles.addButtonTextContainer}>
-              <Text style={styles.addBudgetTitle}>{t("New Category")}</Text>
-              <Text style={styles.addBudgetSubtext}>
-                Create a new budget category to track
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={wp("6%")}
-              color={COLORS.text.secondary}
-            />
-          </View>
-        </TouchableOpacity>
+        {/* ... Rest of your code ... */}
 
+        {/* Modal for editing budget limit */}
         <Modal
           visible={modalVisible}
           transparent={true}
@@ -423,7 +420,7 @@ const BudgetsScreen = () => {
                   <View style={styles.modalInputContainer}>
                     <Text style={styles.modalInputLabel}>Budget Limit</Text>
                     <View style={styles.modalInputWrapper}>
-                      <Text style={styles.currencySymbol}>₹</Text>
+                      <Text style={styles.currencySymbol}>{currencySymbol}</Text>
                       <TextInput
                         style={styles.modalInput}
                         keyboardType="numeric"
@@ -438,10 +435,10 @@ const BudgetsScreen = () => {
                   <View style={styles.modalCurrentInfo}>
                     <Text style={styles.modalInfoText}>Current Spent</Text>
                     <Text style={styles.modalInfoValue}>
-                      ₹
+                      {currencySymbol}
                       {(
                         spentByCategory[selectedBudget.category] || 0
-                      ).toLocaleString()}
+                      ).toFixed(2).toLocaleString()}
                     </Text>
                   </View>
 
@@ -470,6 +467,7 @@ const BudgetsScreen = () => {
     </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

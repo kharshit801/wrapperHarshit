@@ -21,7 +21,9 @@ import { useTranslation } from 'react-i18next';
 
 const AccountsScreen = () => {
   const navigation = useNavigation();
-  const { fetchExpenses, state } = useGlobalContext();
+  const { fetchExpenses, state, convertAmount } = useGlobalContext();
+  const { defaultCurrency, currencies } = state;
+  const currencySymbol = currencies[defaultCurrency]?.symbol || defaultCurrency;
   const [accountBalances, setAccountBalances] = useState({
     Card: 0,
     Cash: 0,
@@ -35,13 +37,13 @@ const AccountsScreen = () => {
 
   useEffect(() => {
     loadAccountData();
-  }, [state.transactions]);
+  }, [state.transactions, defaultCurrency]);
 
   const loadAccountData = async () => {
     try {
       const transactions = await fetchExpenses();
       
-      // Calculate balances for each account
+      // Initialize balances for each account
       const balances = {
         Card: 0,
         Cash: 0,
@@ -52,7 +54,8 @@ const AccountsScreen = () => {
       let totalIncome = 0;
 
       transactions.forEach(transaction => {
-        const amount = parseFloat(transaction.amount);
+        const originalAmount = parseFloat(transaction.amount);
+        const amount = convertAmount(originalAmount, transaction.currency, defaultCurrency);
         const account = transaction.account || 'Cash'; // Default to Cash if no account specified
 
         if (transaction.type === 'EXPENSE') {
@@ -65,8 +68,9 @@ const AccountsScreen = () => {
           // Handle transfers between accounts
           const [fromAccount, toAccount] = transaction.note.split(' to ');
           if (fromAccount && toAccount) {
-            balances[fromAccount] -= amount;
-            balances[toAccount] += amount;
+            const convertedAmount = amount; // Assuming the amount is already converted
+            balances[fromAccount] -= convertedAmount;
+            balances[toAccount] += convertedAmount;
           }
         }
       });
@@ -117,7 +121,7 @@ const AccountsScreen = () => {
             styles.accountBalance,
             { color: account.balance >= 0 ? '#51cf66' : '#ff6b6b' }
           ]}>
-            ₹{account.balance.toFixed(2)}
+            {currencySymbol}{account.balance.toFixed(2)}
           </Text>
         </View>
       </View>
@@ -137,20 +141,20 @@ const AccountsScreen = () => {
             styles.totalBalanceAmount,
             { color: totalBalance >= 0 ? '#51cf66' : '#ff6b6b' }
           ]}>
-            ₹{totalBalance.toFixed(2)}
+            {currencySymbol}{totalBalance.toFixed(2)}
           </Text>
         </View>
         <View style={styles.summary}>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>{t('Expense Amount')}</Text>
             <Text style={[styles.summaryAmount, { color: '#ff6b6b' }]}>
-              ₹{summary.totalExpense.toFixed(2)}
+              {currencySymbol}{summary.totalExpense.toFixed(2)}
             </Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>{t('Income Amount')}</Text>
             <Text style={[styles.summaryAmount, { color: '#51cf66' }]}>
-              ₹{summary.totalIncome.toFixed(2)}
+              {currencySymbol}{summary.totalIncome.toFixed(2)}
             </Text>
           </View>
         </View>
@@ -169,6 +173,7 @@ const AccountsScreen = () => {
     </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

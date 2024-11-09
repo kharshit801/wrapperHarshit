@@ -92,7 +92,6 @@ const MAX_DIGITS = 9;
 const DECIMAL_PLACES = 2;
 
 const ExpenseCalculator = ({ onClose, initialData }) => {
-  // Track whether we're in edit mode based on initialData presence
   const isEditMode = Boolean(initialData);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -109,9 +108,20 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   const [availableUPIApps, setAvailableUPIApps] = useState([]);
   const [paymentPending, setPaymentPending] = useState(false);
   const [isLoadingApps, setIsLoadingApps] = useState(false);
-  const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
+  const [amount, setAmount] = useState('0');
   const [isProcessing, setIsProcessing] = useState(false);
-  const { onSave,state} = useGlobalContext();
+  const { onSave, state } = useGlobalContext();
+  const [currency, setCurrency] = useState(initialData?.currency || state?.defaultCurrency || 'USD');
+  const [originalAmount, setOriginalAmount] = useState('');
+  const [originalCurrency, setOriginalCurrency] = useState('');
+
+  // Get currencies and defaultCurrency from global state
+  const { currencies, defaultCurrency } = state;
+
+  // Function to get currency symbol
+  const getCurrencySymbol = (currencyCode) => {
+    return currencies[currencyCode]?.symbol || currencyCode;
+  };
   
   // Transfer-specific states
   const [fromAccount, setFromAccount] = useState(initialData?.fromAccount || '');
@@ -132,6 +142,58 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       checkInstalledApps();
     }
   }, [isEditMode]);
+
+  useEffect(() => {
+    // Only proceed if we're in edit mode and have initial data
+    if (isEditMode && initialData) {
+      console.log('Editing Transaction:', initialData);
+      console.log('Default Currency:', state?.defaultCurrency);
+      console.log('Conversion Rates:', state?.conversionRates);
+      
+      // Validate initialData
+      if (!initialData.amount || !initialData.currency) {
+        console.error('initialData is missing required fields:', initialData);
+        Alert.alert(
+          'Invalid Data',
+          'The transaction data is incomplete. Please try again.',
+          [{ text: 'OK', onPress: onClose }]
+        );
+        return;
+      }
+  
+      // Store the original amount and currency
+      setOriginalAmount(initialData.amount?.toString() || '0');
+      setOriginalCurrency(initialData.currency || state?.defaultCurrency || 'USD');
+      
+      // If currencies are different and we need to convert
+      if (initialData.currency !== state?.defaultCurrency) {
+        // Check if we have convertedAmount from the initial data
+        if (initialData.convertedAmount !== undefined) {
+          // Use the pre-calculated converted amount
+          setAmount(parseFloat(initialData.convertedAmount).toFixed(DECIMAL_PLACES));
+        } else if (state?.conversionRates && 
+                   state.conversionRates[state.defaultCurrency] && 
+                   state.conversionRates[initialData.currency]) {
+          // Calculate conversion if rates are available
+          const conversionRate = state.conversionRates[state.defaultCurrency] / state.conversionRates[initialData.currency];
+          const convertedAmount = (initialData.amount * conversionRate).toFixed(DECIMAL_PLACES);
+          setAmount(convertedAmount);
+        } else {
+          // If no conversion is possible, use original amount and show warning
+          console.warn(`Conversion rates are missing. Using original amount.`);
+          setAmount(parseFloat(initialData.amount).toFixed(DECIMAL_PLACES));
+          Alert.alert(
+            'Currency Conversion Unavailable',
+            `Conversion rates are unavailable. Amount will be displayed in ${initialData.currency}.`,
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        // Same currency, no conversion needed
+        setAmount(parseFloat(initialData.amount).toFixed(DECIMAL_PLACES));
+      }
+    }
+  }, [isEditMode, initialData, state?.defaultCurrency, state?.conversionRates, onClose]);
 
   const formatDate = (date) => {
     return date.toLocaleDateString('en-US', { 
@@ -168,8 +230,8 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   };
 
   // Date change handler
-  const onDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || selectedDate;
+  const onDateChange = (event, selectedDateValue) => {
+    const currentDate = selectedDateValue || selectedDate;
     setShowDatePicker(Platform.OS === 'ios');
     if (currentDate) {
       const newDate = new Date(currentDate);
@@ -182,7 +244,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
 
   // Time change handler
   const onTimeChange = (event, selectedTime) => {
-    const currentTime = selectedTime || selectedTime;
+    const currentTime = selectedTime || selectedDate;
     setShowTimePicker(Platform.OS === 'ios');
     if (currentTime) {
       const newDate = new Date(selectedDate);
@@ -343,7 +405,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       }
       setIsProcessing(false);
     }, 100);
-  }, [expression, amount, isProcessing, validateAmount]);
+  }, [expression, amount, isProcessing, validateAmount, handleClear]);
 
   // Enhanced clear function
   const handleClear = useCallback(() => {
@@ -371,22 +433,52 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
   const saveTransaction = useCallback(() => {
     setShowUPIAppsModal(false);
     setPaymentPending(false);
-
+  
     const numAmount = parseFloat(amount);
     
     if (isNaN(numAmount) || numAmount === 0) {
       Alert.alert('Invalid Amount', 'Amount cannot be zero');
       return;
     }
-
+  
     if (!validateAmount(amount)) {
       Alert.alert('Invalid Amount', 'Amount is invalid');
       return;
     }
-
+  
+    let finalAmount = numAmount;
+    let finalCurrency = state?.defaultCurrency || 'USD';
+    let convertedAmount;
+  
+    // If we're in edit mode and dealing with different currencies
+    if (isEditMode && originalCurrency && originalCurrency !== state?.defaultCurrency) {
+      if (state?.conversionRates &&
+          state.conversionRates[originalCurrency] &&
+          state.conversionRates[state.defaultCurrency]) {
+        // Convert back to original currency
+        const conversionRate = state.conversionRates[originalCurrency] / state.conversionRates[state.defaultCurrency];
+        finalAmount = parseFloat((numAmount * conversionRate).toFixed(DECIMAL_PLACES));
+        finalCurrency = originalCurrency;
+        // Store the converted amount in default currency
+        convertedAmount = numAmount;
+      } else {
+        // If conversion rates are missing, keep the original amount and currency
+        finalAmount = parseFloat(amount);
+        finalCurrency = originalCurrency;
+        console.warn(`Conversion rates are missing. Saving amount in ${originalCurrency}.`);
+        Alert.alert(
+          'Currency Conversion Unavailable',
+          `Conversion rates are unavailable. Saving amount in ${originalCurrency}.`,
+          [{ text: 'OK' }]
+        );
+      }
+    }
+  
     const transactionData = {
       id: initialData?.id || Date.now(),
-      amount: numAmount,
+      amount: parseFloat(finalAmount.toFixed(DECIMAL_PLACES)), // Ensure amount is rounded
+      currency: finalCurrency,
+      convertedAmount: convertedAmount ? parseFloat(convertedAmount.toFixed(DECIMAL_PLACES)) : undefined, // Rounded converted amount
       type,
       category: type === 'TRANSFER' ? 'Transfer' : category,
       account: type === 'TRANSFER' ? fromAccount : account,
@@ -395,12 +487,15 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       date: selectedDate.toISOString(),
       lastModified: new Date().toISOString(),
       isUpdate: isEditMode,
-
     };
-
+  
     onSave(transactionData);
     onClose();
-  }, [amount, type, category, account, fromAccount, toAccount, note, selectedDate, initialData, isEditMode, onSave, onClose, validateAmount]);
+  }, [
+    amount, type, category, account, fromAccount, toAccount, note, selectedDate,
+    initialData, isEditMode, onSave, onClose, validateAmount, originalCurrency,
+    state?.defaultCurrency, state?.conversionRates, originalAmount
+  ]);
 
   const handleSave = () => {
     if (type === 'TRANSFER') {
@@ -455,6 +550,31 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
       </TouchableOpacity>
     </>
   );
+
+  const renderDisplay = () => {
+    const displayAmount = () => {
+      // If the amount is a valid number, format it
+      const numAmount = parseFloat(amount);
+      if (!isNaN(numAmount)) {
+        return numAmount.toFixed(DECIMAL_PLACES);
+      }
+      return amount;
+    };
+
+    return (
+      <View style={styles.displaySection}>
+        {expression && <Text style={styles.expression}>{expression}</Text>}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={[styles.amount, { marginRight: wp('2%') }]}>
+            {displayAmount()}
+          </Text>
+          <TouchableOpacity onPress={handleBackspace} style={{ marginLeft: wp('4%') }}>
+            <Ionicons name="backspace-outline" size={wp('6%')} color={COLORS.text.primary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   const renderDateTime = () => (
     <View style={dateTimeStyles.dateTimeContainer}>
@@ -644,20 +764,10 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
         {renderDateTime()}
 
         {/* Display Section */}
-        <View style={styles.displaySection}>
-          {expression && <Text style={styles.expression}>{expression}</Text>}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.amount}>{amount}</Text>
-            <TouchableOpacity onPress={handleBackspace} style={{ marginLeft: wp('4%') }}>
-              <Ionicons name="backspace-outline" size={wp('6%')} color={COLORS.text.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        {renderDisplay()}
 
         {/* Keypad */}
-        <View style={styles.keypad}>
-          {renderKeypad()}
-        </View>
+        {renderKeypad()}
 
         {/* Date Time Picker Modals */}
         {showDatePicker && Platform.OS === 'android' && (
@@ -790,7 +900,7 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
               />
             </SafeAreaView>
           </Modal>
-
+        
         {/* From Account Selection Modal */}
         <Modal
           visible={showFromAccountModal}
@@ -1057,6 +1167,11 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     fontWeight: '500'
   },
+  originalAmount: {
+    fontSize: wp('4%'),
+    color: COLORS.text.secondary,
+    marginLeft: wp('2%'),
+  },
   keypad: {
     flex: 1,
     padding: wp('2%')
@@ -1110,26 +1225,6 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     fontSize: wp('4%'),
     padding: 0,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: wp('2%'),
-    color: COLORS.text.primary,
-    fontSize: wp('4%'),
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: wp('4%'),
-  },
-  emptyText: {
-    color: COLORS.text.secondary,
-    fontSize: wp('4%'),
   },
   ...additionalStyles,
 });

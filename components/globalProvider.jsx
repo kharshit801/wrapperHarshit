@@ -292,8 +292,12 @@ const globalReducer = (state, action) => {
                 summary: initialState.summary 
             };
 
-        case 'LOAD_STATE':
-            return action.payload || initialState;
+            case 'LOAD_STATE':
+                return {
+                    ...initialState,
+                    ...action.payload,
+                    defaultCurrency: action.payload.defaultCurrency || 'INR',
+                };
 
         case 'SET_MONTH':
             return { 
@@ -712,7 +716,17 @@ const loadExpensesFromDB = async () => {
         try {
             const savedState = await AsyncStorage.getItem(STORAGE_KEY);
             if (savedState) {
-                dispatch({ type: 'LOAD_STATE', payload: JSON.parse(savedState) });
+                const parsedState = JSON.parse(savedState);
+                dispatch({ type: 'LOAD_STATE', payload: parsedState });
+
+                // Ensure defaultCurrency is set
+                if (!parsedState.defaultCurrency) {
+                    const savedCurrency = await AsyncStorage.getItem('APP_DEFAULT_CURRENCY');
+                    dispatch({ type: 'SET_DEFAULT_CURRENCY', payload: savedCurrency || 'INR' });
+                }
+            } else {
+                const savedCurrency = await AsyncStorage.getItem('APP_DEFAULT_CURRENCY');
+                dispatch({ type: 'SET_DEFAULT_CURRENCY', payload: savedCurrency || 'INR' });
             }
 
             const savedLanguage = await AsyncStorage.getItem('APP_LANGUAGE');
@@ -726,7 +740,6 @@ const loadExpensesFromDB = async () => {
             console.error('Error loading initial state:', error);
         }
     };
-
     const saveState = async (stateToSave) => {
         try {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
@@ -869,10 +882,12 @@ const loadExpensesFromDB = async () => {
     };
 
     const setDefaultCurrency = (currency) => {
+        const newCurrency = currency || 'INR';
         dispatch({
             type: 'SET_DEFAULT_CURRENCY',
-            payload: currency
+            payload: newCurrency
         });
+        AsyncStorage.setItem('APP_DEFAULT_CURRENCY', newCurrency);
     };
     
     return (

@@ -24,14 +24,18 @@ import LottieView from "lottie-react-native";
 const TIMEFRAMES = ["month", "quarter", "year"];
 
 const Analysis = () => {
-  const { state } = useGlobalContext();
-  const { summary, transactions, budgets } = state;
+  // Get necessary data and functions from the global context
+  const { state, convertAmount } = useGlobalContext();
+  const { summary, transactions, budgets, defaultCurrency, currencies } = state;
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState("month");
   const screenWidth = Dimensions.get("window").width;
   const [showSpotlight, setShowSpotlight] = useState(true);
 
-  // Enhanced data processing
+  // Get the symbol of the default currency
+  const currencySymbol = currencies[defaultCurrency]?.symbol || defaultCurrency;
+
+  // Enhanced data processing with currency conversion
   const processedData = useMemo(() => {
     const today = new Date();
     const periods = {
@@ -88,9 +92,14 @@ const Analysis = () => {
       });
     }
 
-    // Process transactions
+    // Process transactions with currency conversion
     transactions.forEach((transaction) => {
       const transactionDate = new Date(transaction.date);
+      const convertedAmount = convertAmount(
+        transaction.amount,
+        transaction.currency,
+        defaultCurrency
+      );
       for (let i = 0; i < periodData.length; i++) {
         const period = periodData[i];
         if (
@@ -98,8 +107,8 @@ const Analysis = () => {
           transactionDate <= period.endDate
         ) {
           if (transaction.type === "EXPENSE") {
-            period.expenses += transaction.amount;
-            totalSpent += transaction.amount;
+            period.expenses += convertedAmount;
+            totalSpent += convertedAmount;
 
             // Category aggregation
             if (!categoryData[transaction.category]) {
@@ -113,9 +122,9 @@ const Analysis = () => {
                   )?.limit || 0,
               };
             }
-            categoryData[transaction.category].amount += transaction.amount;
-          } else {
-            period.income += transaction.amount;
+            categoryData[transaction.category].amount += convertedAmount;
+          } else if (transaction.type === "INCOME") {
+            period.income += convertedAmount;
           }
           break;
         }
@@ -130,19 +139,21 @@ const Analysis = () => {
           : 0;
     });
 
-    // Process budgets
+    // Process budgets (assumed to be in default currency)
     budgets.forEach((budget) => {
       totalBudget += budget.limit;
     });
+
+    const budgetUtilization = totalBudget !== 0 ? (totalSpent / totalBudget) * 100 : 0;
 
     return {
       periodData,
       categoryData,
       totalSpent,
       totalBudget,
-      budgetUtilization: totalBudget !== 0 ? (totalSpent / totalBudget) * 100 : 0,
+      budgetUtilization,
     };
-  }, [transactions, selectedTimeframe, budgets]);
+  }, [transactions, selectedTimeframe, budgets, defaultCurrency, convertAmount]);
 
   // Prepare chart data
   const spendingTrendData = {
@@ -162,7 +173,7 @@ const Analysis = () => {
     legend: ["Expenses", "Income"],
   };
 
-  // Consistent color assignment
+  // Consistent color assignment for categories
   const categoryNames = Object.keys(processedData.categoryData);
   const colors = COLORS.chartColors;
 
@@ -180,6 +191,7 @@ const Analysis = () => {
     };
   });
 
+  // Category legend component
   const CategoryLegend = ({ data }) => (
     <View style={styles.legendContainer}>
       {data.map((item) => (
@@ -196,6 +208,7 @@ const Analysis = () => {
     </View>
   );
 
+  // Timeframe selector component
   const TimeframeSelector = () => (
     <View style={styles.timeframeContainer}>
       {TIMEFRAMES.map((timeframe) => (
@@ -237,7 +250,8 @@ const Analysis = () => {
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Total Spent</Text>
             <Text style={styles.summaryValue}>
-              ₹{processedData.totalSpent.toLocaleString()}
+              {currencySymbol}
+              {processedData.totalSpent.toFixed(2).toLocaleString()}
             </Text>
           </View>
           <View style={styles.summaryCard}>
@@ -255,7 +269,7 @@ const Analysis = () => {
             data={spendingTrendData}
             width={screenWidth - wp("12%")}
             height={220}
-            yAxisLabel="₹"
+            yAxisLabel={currencySymbol}
             chartConfig={{
               backgroundColor: COLORS.primary,
               backgroundGradientFrom: COLORS.primary,
@@ -276,7 +290,10 @@ const Analysis = () => {
               },
               spacing: wp("2%"),
               formatYLabel: (value) =>
-                value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+                parseFloat(value)
+                  .toFixed(2)
+                  .toString()
+                  .replace(/\B(?=(\d{3})+(?!\d))/g, ","),
             }}
             bezier
             style={[

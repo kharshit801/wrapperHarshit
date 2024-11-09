@@ -9,8 +9,7 @@ import {
   SafeAreaView,
   StatusBar,
 } from "react-native";
-import { LineChart, BarChart, PieChart } from "react-native-chart-kit";
-import { Ionicons } from "@expo/vector-icons";
+import { LineChart, PieChart } from "react-native-chart-kit";
 import { COLORS } from "../../../constants/theme";
 import ChatInterface from "../../../components/ChatInterface";
 import {
@@ -21,6 +20,9 @@ import Header from "../../../components/commonheader";
 import { useGlobalContext } from "../../../components/globalProvider";
 import ChatGuidePointer from "../../../components/ChatGuidePointet";
 import LottieView from "lottie-react-native";
+
+const TIMEFRAMES = ["month", "quarter", "year"];
+
 const Analysis = () => {
   const { state } = useGlobalContext();
   const { summary, transactions, budgets } = state;
@@ -35,7 +37,7 @@ const Analysis = () => {
     const periods = {
       month: 6,
       quarter: 4,
-      year: 12,
+      year: 5,
     };
 
     const getPeriodLabel = (date, timeframe) => {
@@ -43,9 +45,11 @@ const Analysis = () => {
         case "month":
           return date.toLocaleString("default", { month: "short" });
         case "quarter":
-          return `Q${Math.floor(date.getMonth() / 3) + 1}`;
+          return `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
         case "year":
           return date.getFullYear().toString();
+        default:
+          return "";
       }
     };
 
@@ -57,10 +61,27 @@ const Analysis = () => {
 
     // Initialize period data
     for (let i = periodCount - 1; i >= 0; i--) {
-      const date = new Date(today);
-      date.setMonth(date.getMonth() - i);
+      let periodStartDate, periodEndDate;
+      if (selectedTimeframe === "month") {
+        const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        periodStartDate = new Date(date);
+        periodEndDate = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      } else if (selectedTimeframe === "quarter") {
+        const monthsBack = i * 3;
+        const date = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
+        const quarterStartMonth = Math.floor(date.getMonth() / 3) * 3;
+        periodStartDate = new Date(date.getFullYear(), quarterStartMonth, 1);
+        periodEndDate = new Date(date.getFullYear(), quarterStartMonth + 3, 0);
+      } else if (selectedTimeframe === "year") {
+        const year = today.getFullYear() - i;
+        periodStartDate = new Date(year, 0, 1);
+        periodEndDate = new Date(year, 11, 31);
+      }
+
       periodData.push({
-        label: getPeriodLabel(date, selectedTimeframe),
+        label: getPeriodLabel(periodStartDate, selectedTimeframe),
+        startDate: periodStartDate,
+        endDate: periodEndDate,
         expenses: 0,
         income: 0,
         savings: 0,
@@ -70,31 +91,33 @@ const Analysis = () => {
     // Process transactions
     transactions.forEach((transaction) => {
       const transactionDate = new Date(transaction.date);
-      const monthDiff =
-        (today.getFullYear() - transactionDate.getFullYear()) * 12 +
-        today.getMonth() -
-        transactionDate.getMonth();
+      for (let i = 0; i < periodData.length; i++) {
+        const period = periodData[i];
+        if (
+          transactionDate >= period.startDate &&
+          transactionDate <= period.endDate
+        ) {
+          if (transaction.type === "EXPENSE") {
+            period.expenses += transaction.amount;
+            totalSpent += transaction.amount;
 
-      if (monthDiff < periodCount) {
-        const periodIndex = periodCount - monthDiff - 1;
-        if (transaction.type === "EXPENSE") {
-          periodData[periodIndex].expenses += transaction.amount;
-          totalSpent += transaction.amount;
-
-          // Category aggregation
-          if (!categoryData[transaction.category]) {
-            categoryData[transaction.category] = {
-              amount: 0,
-              budget:
-                budgets.find(
-                  (b) =>
-                    b.title.toLowerCase() === transaction.category.toLowerCase()
-                )?.limit || 0,
-            };
+            // Category aggregation
+            if (!categoryData[transaction.category]) {
+              categoryData[transaction.category] = {
+                amount: 0,
+                budget:
+                  budgets.find(
+                    (b) =>
+                      b.title.toLowerCase() ===
+                      transaction.category.toLowerCase()
+                  )?.limit || 0,
+              };
+            }
+            categoryData[transaction.category].amount += transaction.amount;
+          } else {
+            period.income += transaction.amount;
           }
-          categoryData[transaction.category].amount += transaction.amount;
-        } else {
-          periodData[periodIndex].income += transaction.amount;
+          break;
         }
       }
     });
@@ -102,7 +125,9 @@ const Analysis = () => {
     // Calculate savings rate and budget utilization
     periodData.forEach((period) => {
       period.savings =
-        ((period.income - period.expenses) / period.income) * 100 || 0;
+        period.income !== 0
+          ? ((period.income - period.expenses) / period.income) * 100
+          : 0;
     });
 
     // Process budgets
@@ -115,7 +140,7 @@ const Analysis = () => {
       categoryData,
       totalSpent,
       totalBudget,
-      budgetUtilization: (totalSpent / totalBudget) * 100,
+      budgetUtilization: totalBudget !== 0 ? (totalSpent / totalBudget) * 100 : 0,
     };
   }, [transactions, selectedTimeframe, budgets]);
 
@@ -137,24 +162,31 @@ const Analysis = () => {
     legend: ["Expenses", "Income"],
   };
 
-  const categoryChartData = Object.entries(processedData.categoryData).map(
-    ([category, data]) => ({
-      name: category.length > 10 ? category.substring(0, 8) + "..." : category, // Shorter truncation
+  // Consistent color assignment
+  const categoryNames = Object.keys(processedData.categoryData);
+  const colors = COLORS.chartColors;
+
+  const categoryChartData = categoryNames.map((category, index) => {
+    const data = processedData.categoryData[category];
+    return {
+      name:
+        category.length > 10 ? category.substring(0, 8) + "..." : category,
       amount: data.amount,
-      color:
-        COLORS.chartColors[
-          Math.floor(Math.random() * COLORS.chartColors.length)
-        ],
+      color: colors[index % colors.length],
       legendFontColor: COLORS.text.primary,
       legendFontSize: wp("3%"),
-      percentageUsed: (data.amount / data.budget) * 100,
-    })
-  );
+      percentageUsed:
+        data.budget !== 0 ? (data.amount / data.budget) * 100 : 0,
+    };
+  });
+
   const CategoryLegend = ({ data }) => (
     <View style={styles.legendContainer}>
-      {data.map((item, index) => (
-        <View key={index} style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: item.color }]} />
+      {data.map((item) => (
+        <View key={item.name} style={styles.legendItem}>
+          <View
+            style={[styles.legendColor, { backgroundColor: item.color }]}
+          />
           <Text style={styles.legendText}>
             {item.name} (
             {((item.amount / processedData.totalSpent) * 100).toFixed(1)}%)
@@ -166,7 +198,7 @@ const Analysis = () => {
 
   const TimeframeSelector = () => (
     <View style={styles.timeframeContainer}>
-      {["month", "quarter", "year"].map((timeframe) => (
+      {TIMEFRAMES.map((timeframe) => (
         <TouchableOpacity
           key={timeframe}
           style={[
@@ -221,8 +253,8 @@ const Analysis = () => {
           <Text style={styles.chartTitle}>Income vs Expenses Trend</Text>
           <LineChart
             data={spendingTrendData}
-            width={screenWidth - wp("12%")} // Increased padding
-            height={220} // Fixed height instead of percentage
+            width={screenWidth - wp("12%")}
+            height={220}
             yAxisLabel="₹"
             chartConfig={{
               backgroundColor: COLORS.primary,
@@ -235,17 +267,14 @@ const Analysis = () => {
                 borderRadius: 16,
               },
               propsForDots: {
-                r: "4", // Reduced dot size
+                r: "4",
                 strokeWidth: "2",
                 stroke: COLORS.primary,
               },
-              // Added proper padding
               propsForLabels: {
                 fontSize: wp("3%"),
               },
-              // Added proper spacing
               spacing: wp("2%"),
-              // Ensure proper Y-axis formatting
               formatYLabel: (value) =>
                 value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
             }}
@@ -254,10 +283,9 @@ const Analysis = () => {
               styles.chart,
               {
                 marginVertical: hp("1%"),
-                paddingRight: wp("4%"), // Add right padding for y-axis labels
+                paddingRight: wp("4%"),
               },
             ]}
-            // Added props to prevent overflow
             withInnerLines={true}
             withOuterLines={true}
             withVerticalLabels={true}
@@ -273,7 +301,7 @@ const Analysis = () => {
           <View style={styles.pieChartContainer}>
             <PieChart
               data={categoryChartData}
-              width={screenWidth - wp("40%")} // Reduced width to make space for legend
+              width={screenWidth - wp("40%")}
               height={200}
               chartConfig={{
                 color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
@@ -283,8 +311,8 @@ const Analysis = () => {
               backgroundColor="transparent"
               paddingLeft={0}
               absolute
-              hasLegend={false} // Disable default legend
-              center={[50, 0]} // Adjust center position
+              hasLegend={false}
+              center={[50, 0]}
             />
             <CategoryLegend data={categoryChartData} />
           </View>
@@ -328,26 +356,16 @@ const Analysis = () => {
       <TouchableOpacity
         style={[
           styles.chatButton,
-          showSpotlight && {
-            elevation: 25,
-            shadowColor: "#fff",
-            shadowOffset: {
-              width: 0,
-              height: 0,
-            },
-            shadowOpacity: 0.5,
-            shadowRadius: 10,
-          },
+          showSpotlight && styles.chatButtonSpotlight,
         ]}
         onPress={() => setIsChatOpen(true)}
       >
         <LottieView
           source={require("../../../assets/animation/ai.json")}
           loop
-          style={{width:wp(20), height:wp(20)}}
+          style={{ width: wp("12%"), height: wp("12%") }}
           autoPlay
         />
-        {/* <Ionicons name="chatbubble-ellipses-outline" size={wp("6%")} color={COLORS.background} /> */}
       </TouchableOpacity>
 
       {isChatOpen && (
@@ -434,14 +452,12 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-
   pieChartContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: hp("2%"),
   },
-
   chartTitle: {
     fontSize: wp("4%"),
     color: COLORS.text.primary,
@@ -488,7 +504,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: hp("3%"),
     right: wp("4%"),
-    // backgroundColor: COLORS.secondary,
     width: wp("12%"),
     height: wp("12%"),
     borderRadius: wp("6%"),
@@ -503,25 +518,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
+  chatButtonSpotlight: {
+    elevation: 25,
+    shadowColor: "#fff",
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+  },
   legendContainer: {
     flex: 1,
     marginLeft: wp("4%"),
     justifyContent: "center",
   },
-
   legendItem: {
     flexDirection: "row",
     alignItems: "center",
     marginVertical: hp("0.5%"),
   },
-
   legendColor: {
     width: wp("3%"),
     height: wp("3%"),
     borderRadius: wp("1.5%"),
     marginRight: wp("2%"),
   },
-
   legendText: {
     color: COLORS.text.primary,
     fontSize: wp("3%"),

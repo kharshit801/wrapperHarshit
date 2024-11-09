@@ -92,15 +92,6 @@ useEffect(() => {
           ),
         }}
       />
-      <Tabs.Screen
-        name="categories"
-        options={{
-          title: t('Categories'),
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="pricetags" size={wp('6%')} color={color} />
-          ),
-        }}
-      />
     </Tabs>
     </SafeAreaView>
   );

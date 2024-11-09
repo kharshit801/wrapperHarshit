@@ -1,3 +1,4 @@
+// Header.js
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, StatusBar, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,9 +8,11 @@ import {
   heightPercentageToDP as hp
 } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
-export default function Header({seachIconShown}) {
+export default function Header({ searchIconShown }) {
   const navigation = useNavigation();
+  const { t } = useTranslation();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -19,10 +22,16 @@ export default function Header({seachIconShown}) {
           <Ionicons name="menu" size={wp('6%')} color={COLORS.text.primary} />
         </TouchableOpacity>
         <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
-        {seachIconShown == true ?  <TouchableOpacity onPress ={() => Alert.alert("Search")} style={styles.searchButton}>
-          <Ionicons name="search" size={wp('6%')} color={  COLORS.text.primary} />
-        </TouchableOpacity> : <View/>}
-       
+        {searchIconShown === true ? (
+          <TouchableOpacity
+            onPress={() => Alert.alert(t('Search'))}
+            style={styles.searchButton}
+          >
+            <Ionicons name="search" size={wp('6%')} color={COLORS.text.primary} />
+          </TouchableOpacity>
+        ) : (
+          <View />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -30,13 +39,11 @@ export default function Header({seachIconShown}) {
 
 const styles = StyleSheet.create({
   container: {
-  
     backgroundColor: COLORS.primary,
   },
   header: {
     flexDirection: 'row',
-    justifyContent:'auto',
-    gap:wp("26%"),
+    justifyContent: 'space-between',
     alignItems: 'center',
     padding: wp('4%'),
     backgroundColor: COLORS.background,

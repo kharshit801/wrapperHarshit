@@ -9,13 +9,14 @@ import {
   SafeAreaView,
   StatusBar,
   Modal,
-  Alert,
+  Alert,Button,Linking
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../constants/theme";
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
 import { formatCurrency, convertAmount } from '../utils/currencyService';
+import QRCode from 'react-native-qrcode-svg';
 
 import {
   widthPercentageToDP as wp,
@@ -63,6 +64,28 @@ const MoneyTracker = () => {
       end: monthEnd,
     });
   });
+
+
+  useEffect(() => {
+    const openGooglePay = async () => {
+      const url = 'gpay://'; // URL scheme for Google Pay
+      const supported = await Linking.canOpenURL(url);
+
+      if (supported) {
+        Linking.openURL(url);  // Opens Google Pay
+      } else {
+        console.log('Google Pay is not installed.');
+      }
+    };
+
+    openGooglePay();
+  }, []);
+  
+
+ 
+
+
+ 
 
   // Calculate summary for current month with currency conversion
   const currentMonthSummary = currentMonthTransactions.reduce((summary, transaction) => {
@@ -354,6 +377,7 @@ const MoneyTracker = () => {
           style={styles.animationAdd}
         />
       </TouchableOpacity>
+      <Button title="Open Google Pay" onPress={() => Linking.openURL('gpay://')} />
 
       <Modal
         visible={showCalculator}

@@ -1,3 +1,5 @@
+// components/MoneyTracker.js
+
 import ReceiptParser from "../utils/ReceiptParser";
 import LottieView from "lottie-react-native";
 import React, { useState, useEffect } from "react";
@@ -39,7 +41,7 @@ import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const MoneyTracker = () => {
-  const { onSave, state, dispatch } = useGlobalContext();
+  const { onSave, state, dispatch, convertAmount } = useGlobalContext();
   const navigation = useNavigation();
   const [showCalculator, setShowCalculator] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -91,8 +93,7 @@ const MoneyTracker = () => {
       const convertedAmount = convertAmount(
         parseFloat(transaction.amount),
         transaction.currency || "USD",
-        state.defaultCurrency,
-        state.exchangeRates
+        state.defaultCurrency
       );
 
       if (transaction.type === "EXPENSE") {
@@ -105,8 +106,12 @@ const MoneyTracker = () => {
     { expense: 0, income: 0 }
   );
 
-  currentMonthSummary.total =
-    currentMonthSummary.income - currentMonthSummary.expense;
+  // Round to 2 decimal places
+  currentMonthSummary.expense = parseFloat(currentMonthSummary.expense.toFixed(2));
+  currentMonthSummary.income = parseFloat(currentMonthSummary.income.toFixed(2));
+  currentMonthSummary.total = parseFloat(
+    (currentMonthSummary.income - currentMonthSummary.expense).toFixed(2)
+  );
 
   const showImageSourceOptions = () => {
     Alert.alert(
@@ -181,6 +186,7 @@ const MoneyTracker = () => {
       Alert.alert("Error", "Failed to capture/select image");
     }
   };
+
   const handleOCR = async (base64Image) => {
     try {
       const parser = new ReceiptParser();
@@ -205,7 +211,7 @@ const MoneyTracker = () => {
                 category: details.category,
                 account: details.account,
                 note: details.notes || "",
-                currency: state.defaultCurrency, // Add default currency
+                currency: state.defaultCurrency, // Ensure currency is set correctly
               };
 
               try {
@@ -404,8 +410,7 @@ const MoneyTracker = () => {
                 convertedAmount: convertAmount(
                   parseFloat(transaction.amount),
                   transaction.currency || "USD",
-                  state.defaultCurrency,
-                  state.exchangeRates
+                  state.defaultCurrency
                 ),
               }}
               onEdit={handleEdit}
@@ -473,7 +478,7 @@ const styles = StyleSheet.create({
   logo: {
     width: wp("20%"),
     height: wp("8%"),
-    flex : 1,
+    flex: 1,
     resizeMode: "contain",
     marginLeft: wp("2%"),
   },
@@ -489,7 +494,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.lightbackground,
     borderRadius: wp("2%"),
     paddingHorizontal: wp("2%"),
-    color: COLORS.lightbackground,
+    color: COLORS.text.primary, // Changed from COLORS.lightbackground to COLORS.text.primary
   },
 
   monthNav: {

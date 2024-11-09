@@ -13,28 +13,28 @@
       "backgroundColor": "#fff"
     },
     "ios": {
-      "icon": "./assets/images/logo.png",
-      "supportsTablet": true,
-      "bundleIdentifier": "com.Kharshit801.wrapper",
-      "buildNumber": "1.0.0",
-      "infoPlist": {
-        "LSApplicationQueriesSchemes": [
-          "gpay",
-          "phonepe",
-          "paytm",
-          "bhim",
-          "upi"
-        ],
-        "NSCameraUsageDescription": "This app needs camera access to scan QR codes for payments",
-        "CFBundleURLTypes": [
-          {
-            "CFBundleURLSchemes": [
-              "wrapper"
-            ]
-          }
+  "icon": "./assets/images/logo.png",
+  "supportsTablet": true,
+  "bundleIdentifier": "com.Kharshit801.wrapper",
+  "buildNumber": "1.0.0",
+  "infoPlist": {
+    "LSApplicationQueriesSchemes": [
+      "gpay",    
+      "phonepe",
+      "paytm",
+      "bhim",
+      "upi"
+    ],
+    "NSCameraUsageDescription": "This app needs camera access to scan QR codes for payments",
+    "CFBundleURLTypes": [
+      {
+        "CFBundleURLSchemes": [
+          "wrapper"
         ]
       }
-    },
+    ]
+  }
+},
   "android": {
   "package": "com.Kharshit801.wrapper",
   "versionCode": 1,

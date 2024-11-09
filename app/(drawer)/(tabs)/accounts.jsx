@@ -1,4 +1,3 @@
-// AccountsScreen.jsx
 import React, { useEffect, useState } from 'react';
 import { 
   View, 
@@ -25,9 +24,11 @@ const AccountsScreen = () => {
   const { defaultCurrency, currencies } = state;
   const currencySymbol = currencies[defaultCurrency]?.symbol || defaultCurrency;
   const [accountBalances, setAccountBalances] = useState({
-    Card: 0,
-    Cash: 0,
-    Savings: 0
+    'Credit Card': 0,
+    'Cash': 0,
+    'Savings': 0,
+    'Bank Account': 0,
+    'Investment': 0
   });
   const [summary, setSummary] = useState({
     totalExpense: 0,
@@ -43,11 +44,13 @@ const AccountsScreen = () => {
     try {
       const transactions = await fetchExpenses();
       
-      // Initialize balances for each account
+      // Initialize balances
       const balances = {
-        Card: 0,
-        Cash: 0,
-        Savings: 0
+        'Credit Card': 0,
+        'Cash': 0,
+        'Savings': 0,
+        'Bank Account': 0,
+        'Investment': 0
       };
       
       let totalExpense = 0;
@@ -56,21 +59,35 @@ const AccountsScreen = () => {
       transactions.forEach(transaction => {
         const originalAmount = parseFloat(transaction.amount);
         const amount = convertAmount(originalAmount, transaction.currency, defaultCurrency);
-        const account = transaction.account || 'Cash'; // Default to Cash if no account specified
+        
+        // Normalize account name
+        let accountType = transaction.account;
+        if (accountType === 'Card') accountType = 'Credit Card';
+        if (accountType === 'Bank') accountType = 'Bank Account';
+        if (!balances.hasOwnProperty(accountType)) accountType = 'Cash'; // Default to Cash
 
         if (transaction.type === 'EXPENSE') {
-          balances[account] -= amount;
+          balances[accountType] -= amount;
           totalExpense += amount;
         } else if (transaction.type === 'INCOME') {
-          balances[account] += amount;
+          balances[accountType] += amount;
           totalIncome += amount;
         } else if (transaction.type === 'TRANSFER') {
           // Handle transfers between accounts
-          const [fromAccount, toAccount] = transaction.note.split(' to ');
-          if (fromAccount && toAccount) {
-            const convertedAmount = amount; // Assuming the amount is already converted
-            balances[fromAccount] -= convertedAmount;
-            balances[toAccount] += convertedAmount;
+          const transferMatch = transaction.note?.match(/from\s+([A-Za-z\s]+)\s+to\s+([A-Za-z\s]+)/i);
+          if (transferMatch) {
+            let [, fromAccount, toAccount] = transferMatch;
+            
+            // Normalize transfer account names
+            if (fromAccount === 'Card') fromAccount = 'Credit Card';
+            if (toAccount === 'Card') toAccount = 'Credit Card';
+            if (fromAccount === 'Bank') fromAccount = 'Bank Account';
+            if (toAccount === 'Bank') toAccount = 'Bank Account';
+
+            if (balances.hasOwnProperty(fromAccount) && balances.hasOwnProperty(toAccount)) {
+              balances[fromAccount] -= amount;
+              balances[toAccount] += amount;
+            }
           }
         }
       });
@@ -86,23 +103,21 @@ const AccountsScreen = () => {
   };
 
   const accounts = [
-    { id: 1, type: 'Card', balance: accountBalances.Card, icon: 'card-outline' },
-    { id: 2, type: 'Cash', balance: accountBalances.Cash, icon: 'cash-outline' },
-    { id: 3, type: 'Savings', balance: accountBalances.Savings, icon: 'wallet-outline' }
+    { id: 1, type: 'Credit Card', balance: accountBalances['Credit Card'], icon: 'card-outline' },
+    { id: 2, type: 'Cash', balance: accountBalances['Cash'], icon: 'cash-outline' },
+    { id: 3, type: 'Savings', balance: accountBalances['Savings'], icon: 'wallet-outline' },
+    { id: 4, type: 'Bank Account', balance: accountBalances['Bank Account'], icon: 'home-outline' },
+    { id: 5, type: 'Investment', balance: accountBalances['Investment'], icon: 'trending-up' }
   ];
 
-  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
-
-  const handleAddAccount = () => {
-    // Navigate to add account screen or show modal
-    // navigation.navigate('AddAccount');
-    console.log(t('addAccountPressed'));
-  };
+  const totalBalance = Object.values(accountBalances).reduce((sum, balance) => sum + balance, 0);
 
   const handleAccountPress = (account) => {
-    // Navigate to account details screen
-    // navigation.navigate('AccountDetails', { account });
-    console.log(t('accountPressed', { account: account.type }));
+    navigation.navigate('AccountDetails', { 
+      accountType: account.type,
+      balance: account.balance,
+      currencySymbol
+    });
   };
 
   const renderAccountCard = (account) => (
@@ -121,12 +136,11 @@ const AccountsScreen = () => {
             styles.accountBalance,
             { color: account.balance >= 0 ? '#51cf66' : '#ff6b6b' }
           ]}>
-            {currencySymbol}{account.balance.toFixed(2)}
+            {currencySymbol}{Math.abs(account.balance).toFixed(2)}
           </Text>
         </View>
       </View>
       <TouchableOpacity style={styles.accountMenu}>
-        <Ionicons name="ellipsis-horizontal" size={wp('6%')} color={COLORS.text.primary} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -141,7 +155,7 @@ const AccountsScreen = () => {
             styles.totalBalanceAmount,
             { color: totalBalance >= 0 ? '#51cf66' : '#ff6b6b' }
           ]}>
-            {currencySymbol}{totalBalance.toFixed(2)}
+            {currencySymbol}{Math.abs(totalBalance).toFixed(2)}
           </Text>
         </View>
         <View style={styles.summary}>
@@ -158,7 +172,7 @@ const AccountsScreen = () => {
             </Text>
           </View>
         </View>
-        <Text style={styles.sectionTitle}>{t('accounts')}</Text>
+        <Text style={styles.sectionTitle}>{t('Accounts')}</Text>
         <View style={styles.accountsList}>
           {accounts.map(renderAccountCard)}
         </View>
@@ -166,7 +180,6 @@ const AccountsScreen = () => {
     </SafeAreaView>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -257,22 +270,7 @@ const styles = StyleSheet.create({
   },
   accountMenu: {
     padding: wp('2%')
-  },
-  addAccountButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: wp('4%'),
-    backgroundColor: COLORS.lightbackground,
-    borderRadius: wp('3%'),
-    marginTop: wp('2%')
-  },
-  addAccountText: {
-    color: COLORS.text.primary,
-    fontSize: wp('4%'),
-    fontWeight: '500',
-    marginLeft: wp('2%')
-  },
+  }
 });
 
 export default AccountsScreen;

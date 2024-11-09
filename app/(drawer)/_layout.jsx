@@ -25,6 +25,7 @@ import { COLORS } from "../../constants/theme";
 import ExportDataModal from '../../components/ExportDataModal';
 import { set } from "date-fns";
 import { backupService } from '../../components/backup';
+import QRScannerModel from "../../components/QRCodeScanner"
 import { useRouter } from "expo-router";
 import * as ImagePicker from 'expo-image-picker';
 import { ExpoCamera } from 'expo-camera';
@@ -36,10 +37,11 @@ const CustomDrawerContent = (props) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isCurrencyModalVisible, setIsCurrencyModalVisible] = useState(false);
-  const { state, dispatch, changeLanguage } = useGlobalContext();
+  const { state, dispatch, changeLanguage, importTransferData } = useGlobalContext();
   const { t, i18n } = useTranslation();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isQRScannerVisible, setIsQRScannerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [dataImported, setDataImported] = useState(false);
 
   const { loadExpensesFromDB } = useGlobalContext();
 
@@ -48,7 +50,7 @@ const CustomDrawerContent = (props) => {
     try {
       await setDefaultCurrency(currencyCode);
       dispatch({ type: 'SET_DEFAULT_CURRENCY', payload: currencyCode });
-      
+
       const rates = await fetchExchangeRates();
       if (rates) {
         dispatch({
@@ -57,7 +59,7 @@ const CustomDrawerContent = (props) => {
         });
       }
 
-      
+
     } catch (error) {
       Alert.alert(
         t('Error'),
@@ -72,6 +74,8 @@ const CustomDrawerContent = (props) => {
     try {
       await backupService.exportToMongoDB();
       alert('Backup completed successfully');
+      await loadExpensesFromDB();
+
     } catch (error) {
       alert('Backup failed: ' + error.message);
     }
@@ -80,19 +84,24 @@ const CustomDrawerContent = (props) => {
   const handleLanguageSelect = (language) => {
     console.log("Current language in state:", state.language);
     changeLanguage(language);
-    setIsModalVisible(false); 
+    setIsModalVisible(false);
     console.log("Language changed to", language);
   };
 
   const handleScanQR = async () => {
-    const { status } = await ExpoCamera.requestCameraPermissionsAsync();
-    if (status === 'granted') {
-      const { type } = await ExpoCamera.launchCameraAsync();
-      if (type === 'success') {
-        console.log('Camera opened for QR scanning!');
-      }
-    } else {
-      alert('Camera permission is required to scan QR codes.');
+
+    setIsQRScannerVisible(true);
+
+  };
+  const handleScanSuccess = async (data) => {
+    try {
+      await importTransferData(data);
+      alert('Data imported successfully!');
+      setDataImported(true);
+    } catch (error) {
+      alert('Error importing data: ' + error.message);
+    } finally {
+      setIsQRScannerVisible(false);
     }
   };
 
@@ -103,6 +112,22 @@ const CustomDrawerContent = (props) => {
       i18n.changeLanguage(state.language);
     }
   }, [state.language]);
+
+  useEffect(() => {
+    if (dataImported) {
+      const reloadData = async () => {
+        try {
+          await loadExpensesFromDB();
+        } catch (error) {
+          console.error('Error reloading data:', error);
+        } finally {
+          setDataImported(false);
+        }
+      };
+
+      reloadData();
+    }
+  }, [dataImported, loadExpensesFromDB]);
 
   return (
     <>
@@ -142,18 +167,7 @@ const CustomDrawerContent = (props) => {
                 }}
               />
             ))}
-          <DrawerItem
-            label={t('Help')}
-            icon={() => <MaterialIcons name="help-outline" size={wp("6%")} color={"#000000"} />}
-            onPress={() => Linking.openURL("https://forms.gle/5iJKWrfCXMsviTiL8")}
-            labelStyle={{ color: COLORS.background }}
-          />
-          <DrawerItem
-            label={t('Feedback')}
-            icon={() => <MaterialIcons name="feedback" size={wp("6%")} color={"#000000"} />}
-            onPress={() => Linking.openURL("https://forms.gle/5iJKWrfCXMsviTiL8")}
-            labelStyle={{ color: COLORS.background }}
-          />
+
           <DrawerItem
             label={t('Language')}
             icon={() => <Ionicons name="language" size={wp("6%")} color={"#000000"} />}
@@ -161,7 +175,7 @@ const CustomDrawerContent = (props) => {
             labelStyle={{ color: COLORS.background }}
           />
           <DrawerItem
-            label={t('ScanQR')}
+            label={t('Scan QR')}
             icon={() => <MaterialIcons name="qr-code-scanner" size={wp("6%")} color={"#000000"} />}
             onPress={handleScanQR}
             labelStyle={{ color: COLORS.background }}
@@ -180,10 +194,24 @@ const CustomDrawerContent = (props) => {
             />      
           <DrawerItem
             label={t('Backup')}
-            icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#ff6b6b" />}
+            icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#1f1f1f" />}
             onPress={() => router.push('/signup')}
-            labelStyle={{ color: "#ff6b6b" }}
+            labelStyle={{ color: COLORS.background }}
           />
+          <DrawerItem
+
+            label={t('Help')}
+            icon={() => <MaterialIcons name="help-outline" size={wp("6%")} color={"#000000"} />}
+            onPress={() => Linking.openURL("https://forms.gle/5iJKWrfCXMsviTiL8")}
+            labelStyle={{ color: COLORS.background }}
+          />
+          <DrawerItem
+            label={t('Feedback')}
+            icon={() => <MaterialIcons name="feedback" size={wp("6%")} color={"#000000"} />}
+            onPress={() => Linking.openURL("https://forms.gle/5iJKWrfCXMsviTiL8")}
+            labelStyle={{ color: COLORS.background }}
+          />
+           
         </View>
       </DrawerContentScrollView>
 
@@ -219,20 +247,25 @@ const CustomDrawerContent = (props) => {
       </Modal>
 
       <CurrencySelector
-  visible={isCurrencyModalVisible}
-  onClose={() => setIsCurrencyModalVisible(false)}
-  onSelectCurrency={handleCurrencyChange}
-  currentCurrency={state.defaultCurrency}
-  loading={loading}
-  t={t}
-/>
+        visible={isCurrencyModalVisible}
+        onClose={() => setIsCurrencyModalVisible(false)}
+        onSelectCurrency={handleCurrencyChange}
+        currentCurrency={state.defaultCurrency}
+        loading={loading}
+        t={t}
+      />
+      <QRScannerModel
+        visible={isQRScannerVisible}
+        onClose={() => setIsQRScannerVisible(false)}
+        onScanSuccess={handleScanSuccess}
+      />
 
-      <ExportDataModal 
+      <ExportDataModal
         visible={isExportModalVisible}
         onClose={() => setIsExportModalVisible(false)}
       />
     </>
-    
+
   );
 };
 

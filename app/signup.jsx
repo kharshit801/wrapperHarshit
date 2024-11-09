@@ -1,212 +1,162 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
-  Animated,
   SafeAreaView,
-  StatusBar,
-  Platform,
-  Alert,
-  Image,
   ActivityIndicator,
-  Modal,
+  Image,
+  TouchableOpacity,
+  StatusBar
+
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { COLORS } from '../constants/theme';
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp
+} from 'react-native-responsive-screen';
+import Header from '../components/commonheader';
+import { useGlobalContext } from '../components/globalProvider';
+import QRCode from 'react-native-qrcode-svg';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
-const Signup = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showQR, setShowQR] = useState(false);
-  const [qrCode, setQrCode] = useState('');
+const QRScreen = () => {
+  const { generateTransferData } = useGlobalContext();
+  const [qrData, setQrData] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const router = useRouter();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const router=useRouter();
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 1000,
-      useNativeDriver: true,
-    }).start();
+    const loadData = async () => {
+      try {
+        const data = await generateTransferData();
+        setQrData(data);
+      } catch (error) {
+        console.error('Error generating QR data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
-  const handleSignup = async () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await axios.post('http://172.29.49.198:8001/user/signup', {
-        username,
-        password
-      });
-
-      // Store user data securely
-      await SecureStore.setItemAsync('userData', JSON.stringify({
-        userId: response.data.userId,
-        username: response.data.username,
-        token: response.data.token
-      }));
-
-      setQrCode(response.data.qrCode);
-      setShowQR(true);
-      setIsLoading(false);
-    } catch (error) {
-      setIsLoading(false);
-      Alert.alert(
-        'Signup Failed',
-        error.response?.data?.message || 'Please try again later'
-      );
-    }
-  };
-
-  const handleContinue = () => {
-    setShowQR(false);
-    router.replace('(drawer)');
-  };
-
   return (
-    <SafeAreaView style={styles.mainContainer}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-      <View style={styles.container}>
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <Image source={require('../assets/images/logo.png')} style={styles.logo} />
-          <Text style={styles.title}>Sign Up</Text>
-          <TextInput
-            style={[styles.input, { marginTop: hp(3), color: COLORS.text.primary }]}
-            placeholder="Enter username"
-            placeholderTextColor={COLORS.text.secondary}
-            value={username}
-            onChangeText={setUsername}
-          />
-          <TextInput
-            style={[styles.input, { marginTop: hp(2), color: COLORS.text.primary }]}
-            placeholder="Enter password"
-            placeholderTextColor={COLORS.text.secondary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-          <TouchableOpacity style={styles.button} onPress={handleSignup} disabled={isLoading}>
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
-            )}
+    <SafeAreaView style={styles.container}>
+       <StatusBar translucent={false} backgroundColor={COLORS.background} barStyle="light-content" />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => router.push('(tabs)')}>
+          <Ionicons name="arrow-back" size={wp('6%')} color={COLORS.text.primary} />
           </TouchableOpacity>
-        </Animated.View>
-
-        <Modal visible={showQR} transparent animationType="fade">
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Your Backup QR Code</Text>
-              <Text style={styles.modalSubtitle}>
-                Save this QR code to share your data with other devices
-              </Text>
-              {qrCode && (
-                <Image
-                  source={{ uri: qrCode }}
-                  style={styles.qrCode}
-                  resizeMode="contain"
-                />
-              )}
-              <TouchableOpacity style={styles.button} onPress={handleContinue}>
-                <Text style={styles.buttonText}>Continue</Text>
-              </TouchableOpacity>
+          <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
+      </View>
+      <View style={styles.content}>
+        <Text style={styles.title}>Scan QR Code</Text>
+        <Text style={styles.subtitle}>
+          Share this QR code to quickly transfer data
+        </Text>
+        
+        <View style={styles.qrContainer}>
+          {isLoading ? (
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          ) : qrData ? (
+            <View style={styles.qrWrapper}>
+              <QRCode
+                value={qrData}
+                size={wp('60%')}
+                backgroundColor="white"
+                color="black"
+              />
             </View>
-          </View>
-        </Modal>
+          ) : (
+            <Text style={styles.errorText}>Failed to generate QR code</Text>
+          )}
+        </View>
+        
+        <Text style={styles.helpText}>
+          Point your camera at this QR code to begin the transfer process
+        </Text>
       </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: COLORS.background,
   },
-  logo: {
-    width: wp('72%'),
-    height: wp('30%'),
-    resizeMode: 'contain',
-    marginBottom: hp('3%'),
+  content: {
+    flex: 1,
+    paddingHorizontal: wp('5%'),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: wp('6%'),
-    fontWeight: "900",
-    color: COLORS.text.primary,
-    marginBottom: hp('3%'),
+    fontWeight: 'bold',
+    color: COLORS.whiteBg,
+    marginBottom: hp('1%'),
   },
-  input: {
-    width: wp('80%'),
-    height: hp('6%'),
-    borderWidth: 1,
-    borderColor: COLORS.text.secondary,
-    borderRadius: wp('2%'),
-    paddingHorizontal: wp('3%'),
-    marginVertical: hp('1.5%'),
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: hp('1.5%'),
-    paddingHorizontal: wp('5%'),
-    borderRadius: wp('2%'),
-    alignItems: 'center',
-    marginTop: hp('2%'),
-  },
-  buttonText: {
-    color: '#fff',
+  subtitle: {
     fontSize: wp('4%'),
-    fontWeight: '600',
+    color: COLORS.whiteBg,
+    marginBottom: hp('4%'),
+    textAlign: 'center',
   },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  qrContainer: {
+    width: wp('70%'),
+    height: wp('70%'),
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: {
-    backgroundColor: COLORS.background,
-    padding: wp(5),
-    borderRadius: wp(3),
-    alignItems: 'center',
-    width: wp(90),
+  qrWrapper: {
+    padding: wp('4%'),
+    backgroundColor: COLORS.whiteBg,
+    borderRadius: wp('8%'),
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  modalTitle: {
-    fontSize: wp(5),
-    fontWeight: 'bold',
-    color: COLORS.text.primary,
-    marginBottom: hp(1),
-  },
-  modalSubtitle: {
-    fontSize: wp(3.5),
-    color: COLORS.text.secondary,
+  errorText: {
+    color: 'red',
+    fontSize: wp('4%'),
     textAlign: 'center',
-    marginBottom: hp(2),
   },
-  qrCode: {
-    width: wp(60),
-    height: wp(60),
-    marginBottom: hp(2),
+  helpText: {
+    fontSize: wp('3.5%'),
+    color: COLORS.whiteBg,
+    textAlign: 'center',
+    marginTop: hp('4%'),
+    paddingHorizontal: wp('10%'),
+  },
+  logo: {
+    width: wp('20%'),
+    height: wp('8%'),
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: wp('4%'),
+    backgroundColor: COLORS.background,
+    gap:wp('27%')
+  },
+  logo: {
+    width: wp('20%'),
+    height: wp('8%'),
+  },
+  menuButton: {
+    padding: wp('2%'),
+  },
+  searchButton: {
+    padding: wp('2%'),
   },
 });
 
-export default Signup;
+export default QRScreen;

@@ -243,7 +243,7 @@ const allCurrencies = {
           </View>
 
           {loading ? (
-            <ActivityIndicator size="large" color={COLORS.primary} style={styles.loader} />
+            <ActivityIndicator size="small" color={COLORS.background} style={styles.loader} />
           ) : (
             <FlatList
               data={filteredCurrencies}
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: wp('6%'),
     fontWeight: 'bold',
-    marginBottom: hp('2%'),
+    // marginBottom: hp('2%'),
     textAlign: 'center',
     color: COLORS.text.primary,
   },

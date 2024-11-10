@@ -149,26 +149,33 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     });
   };
 
-  const checkInstalledApps = async () => {
-    setIsLoadingApps(true);
-    try {
+  // const checkInstalledApps = async () => {
+
+  //   setIsLoadingApps(true);
+  //   try {
      
 
-      const installedApps = [];
-      for (const app of UPI_APPS) {
-        const isInstalled = await PaymentService.checkInstalledApps(app);
-        if (isInstalled) {
-          installedApps.push(app);
-        }
-      }
-      setAvailableUPIApps(installedApps);
-    } catch (error) {
-      console.error('Error checking installed apps:', error);
-    } finally {
-      setIsLoadingApps(false);
-    }
-  };
+  //     const installedApps = [];
+  //     for (const app of UPI_APPS) {
+  //       const isInstalled = await PaymentService.checkInstalledApps(app);
+  //       if (isInstalled) {
+  //         installedApps.push(app);
+  //       }
+  //     }
+  //     setAvailableUPIApps(installedApps);
+  //   } catch (error) {
+  //     console.error('Error checking installed apps:', error);
+  //   } finally {
+  //     setIsLoadingApps(false);
+  //   }
+  // };
 
+
+  const checkInstalledApps = () => {
+    setIsLoadingApps(true);
+    setAvailableUPIApps(UPI_APPS); // Directly show all UPI apps
+    setIsLoadingApps(false);
+  };
   // Date change handler
   const onDateChange = (event, selectedDate) => {
     const currentDate = selectedDate || selectedDate;
@@ -206,24 +213,53 @@ const ExpenseCalculator = ({ onClose, initialData }) => {
     }
   };
 
+  // const handleUPIApp = async (app) => {
+  //   try {
+  //     setShowUPIAppsModal(false);  // Close any modal if needed
+  //     setPaymentPending(true);  // Set loading state to true (if using)
+  
+  //     const appSpecificUrl = app.uriSchema;  // Get the URI schema (e.g., 'gpay://')
+  
+  //     // Open the app directly without checking if it's installed
+  //     await Linking.openURL(appSpecificUrl);
+  
+  //     setPaymentPending(false); 
+  //     saveTransaction(); // Reset loading state
+  //   } catch (error) {
+  //     console.error('Error opening app:', error);
+  //     setPaymentPending(false);  // Reset loading state on error
+  //   }
+  // };
+
+
   const handleUPIApp = async (app) => {
     try {
-      setShowUPIAppsModal(false);  // Close any modal if needed
-      setPaymentPending(true);  // Set loading state to true (if using)
+      setShowUPIAppsModal(false); // Close any modal if needed
+      setPaymentPending(true);    // Set loading state to true (if using)
   
-      const appSpecificUrl = app.uriSchema;  // Get the URI schema (e.g., 'gpay://')
+      if (Platform.OS === 'android') {
+        // Android-specific handling with IntentLauncher
+        const activity = {
+          package: app.package,
+          flags: [
+            IntentLauncher.FLAG_ACTIVITY_NEW_TASK,
+            IntentLauncher.FLAG_ACTIVITY_SINGLE_TOP,
+          ],
+        };
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', activity);
+      } else {
+        // iOS-specific handling
+        const appSpecificUrl = `${app.uriSchema}://`; // Make sure to append '://' on iOS
+        await Linking.openURL(appSpecificUrl);
+      }
   
-      // Open the app directly without checking if it's installed
-      await Linking.openURL(appSpecificUrl);
-  
-      setPaymentPending(false); 
-      saveTransaction(); // Reset loading state
+      setPaymentPending(false);
+      saveTransaction(); // Reset loading state and proceed to save transaction
     } catch (error) {
       console.error('Error opening app:', error);
-      setPaymentPending(false);  // Reset loading state on error
+      setPaymentPending(false);    // Reset loading state on error
     }
   };
-
   const handleNumber = useCallback((num) => {
     if (isProcessing) return;
     setIsProcessing(true);

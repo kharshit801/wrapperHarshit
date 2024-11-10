@@ -209,5 +209,7 @@
   "CurrencySettings": "मुद्रा सेटिंग्स",
   "Backup": "बैकअप",
   "Budget_Utilized": "बजट का उपयोग",
+  "bank_account": "बैंक खाता", 
+  "credit_card": "क्रेडिट कार्ड",
   "Total_Spent": "कुल खर्च"
 }

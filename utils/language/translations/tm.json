@@ -209,5 +209,7 @@
   "CurrencySettings": "நாணய அமைப்புகள்",
   "Backup": "காப்பு",
   "Total_Spent": "மொத்தமாக செலவு",
-  "Budget_Utilized": "பட்ஜெட் பயன்படுத்தப்பட்டது"
+  "credit_card": "கடன் அட்டை",
+  "Budget_Utilized": "பட்ஜெட் பயன்படுத்தப்பட்டது",
+  "bank_account": "வங்கி கணக்கு"
 }

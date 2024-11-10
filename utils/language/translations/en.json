@@ -188,5 +188,6 @@
   "errorSavingState": "Error saving state",
   "languageChangedAndSaved": "Language changed and saved:",
   "errorFormattingDate": "Error formatting date",
+  "credit_card": "Credit Card",
   "errorFetchingSpentByCategory": "Error fetching spent by category"
 }

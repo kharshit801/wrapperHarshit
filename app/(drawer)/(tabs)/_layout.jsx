@@ -87,7 +87,7 @@ useEffect(() => {
         options={{
           title: t('Accounts'),
           tabBarIcon: ({ color }) => (
-            <Ionicons name="wallet" size={wp('6%')} color={color} />
+            <Ionicons name="card" size={wp('6%')} color={color} />
           ),
         }}
       />

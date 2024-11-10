@@ -13,13 +13,14 @@ import {
   widthPercentageToDP as wp, 
   heightPercentageToDP as hp 
 } from 'react-native-responsive-screen';
-import { useNavigation } from '@react-navigation/native';
+// Removed useNavigation import
 import Header from '../../../components/commonheader';
 import { useGlobalContext } from '../../../components/globalProvider';
 import { useTranslation } from 'react-i18next';
 
 const AccountsScreen = () => {
-  const navigation = useNavigation();
+  // Removed navigation initialization
+  // const navigation = useNavigation();
   const { fetchExpenses, state, convertAmount } = useGlobalContext();
   const { defaultCurrency, currencies } = state;
   const currencySymbol = currencies[defaultCurrency]?.symbol || defaultCurrency;
@@ -112,6 +113,8 @@ const AccountsScreen = () => {
 
   const totalBalance = Object.values(accountBalances).reduce((sum, balance) => sum + balance, 0);
 
+  // Removed handleAccountPress function
+  /*
   const handleAccountPress = (account) => {
     navigation.navigate('AccountDetails', { 
       accountType: account.type,
@@ -119,12 +122,18 @@ const AccountsScreen = () => {
       currencySymbol
     });
   };
+  */
 
   const renderAccountCard = (account) => (
     <TouchableOpacity 
       key={account.id} 
       style={styles.accountCard}
+      // Removed onPress prop
+      /*
       onPress={() => handleAccountPress(account)}
+      */
+      // Optionally, you can add another action here, such as an alert
+      onPress={() => {}}
     >
       <View style={styles.accountInfo}>
         <View style={styles.accountIconContainer}>
@@ -141,6 +150,7 @@ const AccountsScreen = () => {
         </View>
       </View>
       <TouchableOpacity style={styles.accountMenu}>
+        {/* Removed any navigation or actions here */}
       </TouchableOpacity>
     </TouchableOpacity>
   );

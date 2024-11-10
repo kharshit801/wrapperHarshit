@@ -5,7 +5,7 @@
 //     try {
 //       const compatible = await LocalAuthentication.hasHardwareAsync();
 //       const enrolled = await LocalAuthentication.isEnrolledAsync();
-      
+
 //       return {
 //         compatible,
 //         available: compatible && enrolled
@@ -24,7 +24,7 @@
 //         cancelLabel: 'Cancel',
 //         disableDeviceFallback: false,
 //       });
-      
+
 //       return result.success;
 //     } catch (error) {
 //       console.error('Authentication error:', error);
@@ -41,7 +41,6 @@ export class BiometricAuth {
   static async getBiometricType() {
     try {
       const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-      
       if (Platform.OS === 'ios') {
         // Prefer Face ID on iOS
         if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
@@ -61,7 +60,7 @@ export class BiometricAuth {
           };
         }
       }
-      
+
       return {
         available: false,
         type: null,
@@ -82,7 +81,6 @@ export class BiometricAuth {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const enrolled = await LocalAuthentication.isEnrolledAsync();
       const biometricType = await this.getBiometricType();
-      
       return {
         compatible,
         enrolled,
@@ -118,7 +116,7 @@ export class BiometricAuth {
         cancelLabel: 'Cancel',
         disableDeviceFallback: false,
       });
-      
+
       return {
         success: result.success,
         error: result.error,
@@ -135,4 +133,4 @@ export class BiometricAuth {
       };
     }
   }
-}
+} 

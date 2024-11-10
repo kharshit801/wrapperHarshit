@@ -19,9 +19,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../constants/theme";
 import * as ImagePicker from "expo-image-picker";
-import axios from "axios";
 import { formatCurrency, convertAmount } from "../utils/currencyService";
-
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -38,10 +36,10 @@ import {
   isWithinInterval,
 } from "date-fns";
 import { useTranslation } from "react-i18next";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const MoneyTracker = () => {
-  const { onSave, state, dispatch, convertAmount } = useGlobalContext();
+  const { onSave, state, dispatch, convertAmount, loadExpensesFromDB } =
+    useGlobalContext();
   const navigation = useNavigation();
   const [showCalculator, setShowCalculator] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -49,6 +47,10 @@ const MoneyTracker = () => {
 
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    loadExpensesFromDB();
+  }, []);
 
   useEffect(() => {
     if (state.language && i18n.language !== state.language) {
@@ -84,17 +86,24 @@ const MoneyTracker = () => {
       matchesSearch = noteMatch || categoryMatch || accountMatch;
     }
 
-    return isInCurrentMonth && matchesSearch;
+    // Exclude 'TRANSFER' transactions
+    return (
+      isInCurrentMonth && matchesSearch && transaction.type !== "TRANSFER"
+    );
   });
 
   // Calculate summary for current month with currency conversion
   const currentMonthSummary = currentMonthTransactions.reduce(
     (summary, transaction) => {
+      const amount = parseFloat(transaction.amount);
       const convertedAmount = convertAmount(
-        parseFloat(transaction.amount),
+        amount,
         transaction.currency || "USD",
         state.defaultCurrency
       );
+
+      // Skip if convertedAmount is NaN
+      if (isNaN(convertedAmount)) return summary;
 
       if (transaction.type === "EXPENSE") {
         summary.expense += convertedAmount;
@@ -106,12 +115,8 @@ const MoneyTracker = () => {
     { expense: 0, income: 0 }
   );
 
-  // Round to 2 decimal places
-  currentMonthSummary.expense = parseFloat(currentMonthSummary.expense.toFixed(2));
-  currentMonthSummary.income = parseFloat(currentMonthSummary.income.toFixed(2));
-  currentMonthSummary.total = parseFloat(
-    (currentMonthSummary.income - currentMonthSummary.expense).toFixed(2)
-  );
+  currentMonthSummary.total =
+    currentMonthSummary.income - currentMonthSummary.expense;
 
   const showImageSourceOptions = () => {
     Alert.alert(
@@ -288,47 +293,67 @@ const MoneyTracker = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        translucent
-        backgroundColor="transparent"
+        translucent={false}
+        backgroundColor={COLORS.background}
         barStyle="light-content"
       />
       {/* Header */}
-      <View style={styles.headerContainer}>
-        <View style={styles.header}>
-          {/* Sidebar Icon */}
-          <TouchableOpacity onPress={() => navigation.openDrawer()}>
-            <Ionicons
-              name="menu"
-              size={wp("6%")}
-              color={COLORS.text.primary}
-            />
-          </TouchableOpacity>
+      <View style={styles.header}>
+        {/* Left side: Menu button */}
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => navigation.openDrawer()}
+        >
+          <Ionicons name="menu" size={wp("6%")} color={COLORS.text.primary} />
+        </TouchableOpacity>
 
-          {/* App Logo */}
+        {/* Center: Logo */}
+        <View style={styles.logoContainer}>
           <Image
-            source={require("../assets/images/logo.png")} // Make sure the path to your logo is correct
+            source={require("../assets/images/logo.png")}
             style={styles.logo}
+            resizeMode="contain"
           />
-          {/* Search Icon */}
-          <TouchableOpacity onPress={() => setShowSearchBar(!showSearchBar)}>
+        </View>
+
+        {/* Right side: Search icon or placeholder for consistent spacing */}
+        {showSearchBar ? (
+          <TouchableOpacity
+            onPress={() => setShowSearchBar(false)}
+            style={styles.searchButton}
+          >
             <Ionicons
-              name={showSearchBar ? "close" : "search"}
+              name="close"
               size={wp("6%")}
               color={COLORS.text.primary}
             />
           </TouchableOpacity>
-        </View>
-        {showSearchBar && (
-          <View style={styles.searchBar}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={t("Search transactions")}
-              value={searchTerm}
-              onChangeText={setSearchTerm}
+        ) : (
+          <TouchableOpacity
+            onPress={() => setShowSearchBar(true)}
+            style={styles.searchButton}
+          >
+            <Ionicons
+              name="search"
+              size={wp("6%")}
+              color={COLORS.text.primary}
             />
-          </View>
+          </TouchableOpacity>
         )}
       </View>
+
+      {/* Search Input */}
+      {showSearchBar && (
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search transactions..."
+            placeholderTextColor="white"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+          />
+        </View>
+      )}
 
       {/* Month Navigation */}
       <View style={styles.monthNav}>
@@ -459,44 +484,40 @@ const MoneyTracker = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-
-  headerContainer: {
-    backgroundColor: COLORS.backgroundColor,
-  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     padding: wp("4%"),
+    backgroundColor: COLORS.background,
   },
-  headerTitle: {
-    fontSize: wp("5%"),
-    fontWeight: "bold",
-    color: COLORS.text.primary,
+  menuButton: {
+    width: wp("10%"),
+    alignItems: "center",
+  },
+  logoContainer: {
     flex: 1,
-    textAlign: "center",
+    alignItems: "center",
   },
   logo: {
     width: wp("20%"),
     height: wp("8%"),
-    flex: 1,
-    resizeMode: "contain",
-    marginLeft: wp("2%"),
   },
-  searchBar: {
-    flexDirection: "row",
+  searchButton: {
+    width: wp("10%"),
     alignItems: "center",
-    paddingHorizontal: wp("4%"),
-    paddingBottom: hp("1%"),
+  },
+  searchContainer: {
+    padding: wp("4%"),
+    backgroundColor: COLORS.lightbackground,
   },
   searchInput: {
-    flex: 1,
-    height: hp("5%"),
-    backgroundColor: COLORS.lightbackground,
-    borderRadius: wp("2%"),
+    height: hp("6%"),
+    borderColor: COLORS.text.secondary,
+    borderWidth: 1,
+    color: COLORS.text.primary,
+    borderRadius: 5,
     paddingHorizontal: wp("2%"),
-    color: COLORS.text.primary, // Changed from COLORS.lightbackground to COLORS.text.primary
   },
-
   monthNav: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -535,17 +556,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     minHeight: hp("50%"),
   },
-
   animation: {
     width: wp(50),
     height: wp(50),
-  },
-
-  emptyStateText: {
-    color: COLORS.text.secondary,
-    textAlign: "center",
-    marginTop: hp("2%"),
-    fontSize: wp("4%"),
   },
   addButton: {
     position: "absolute",
@@ -567,7 +580,6 @@ const styles = StyleSheet.create({
     width: wp("14%"),
     height: wp("14%"),
   },
-  addButtonText: { fontSize: wp("8%"), color: "#fff", fontWeight: "bold" },
 });
 
 export default MoneyTracker;

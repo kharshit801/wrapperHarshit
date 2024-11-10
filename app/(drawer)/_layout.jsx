@@ -175,9 +175,9 @@ const CustomDrawerContent = (props) => {
             labelStyle={{ color: COLORS.background }}
           />
           <DrawerItem
-            label={t('Currency Settings')}
-            icon={() => <MaterialIcons name="money" size={wp("6%")} color="#1f1f1f" />}
-            onPress={() => setIsCurrencyModalVisible(true)}
+            label={t('Scan QR')}
+            icon={() => <MaterialIcons name="qr-code-scanner" size={wp("6%")} color={"#000000"} />}
+            onPress={handleScanQR}
             labelStyle={{ color: COLORS.background }}
           />
           <DrawerItem
@@ -186,22 +186,18 @@ const CustomDrawerContent = (props) => {
             onPress={() => setIsExportModalVisible(true)}
             labelStyle={{ color: COLORS.background }}
           />
-          
+           <DrawerItem
+              label={t('CurrencySettings')}
+              icon={() => <MaterialIcons name="money" size={wp("6%")} color="#1f1f1f" />}
+              onPress={() => setIsCurrencyModalVisible(true)}
+              labelStyle={{ color: COLORS.background }}
+            />      
           <DrawerItem
             label={t('Backup')}
             icon={() => <MaterialIcons name="logout" size={wp("6%")} color="#1f1f1f" />}
             onPress={() => router.push('/signup')}
             labelStyle={{ color: COLORS.background }}
           />
-
-          <DrawerItem
-            label={t('Scan QR')}
-            icon={() => <MaterialIcons name="qr-code-scanner" size={wp("6%")} color={"#000000"} />}
-            onPress={handleScanQR}
-            labelStyle={{ color: COLORS.background }}
-          />
-
-
           <DrawerItem
 
             label={t('Help')}
@@ -215,7 +211,7 @@ const CustomDrawerContent = (props) => {
             onPress={() => Linking.openURL("https://forms.gle/5iJKWrfCXMsviTiL8")}
             labelStyle={{ color: COLORS.background }}
           />
-
+           
         </View>
       </DrawerContentScrollView>
 

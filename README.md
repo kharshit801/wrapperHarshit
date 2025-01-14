@@ -1,5 +1,7 @@
 # Wrapper 💰
 
+[![Watch the video](https://img.youtube.com/vi/jnlp1WfTg1I/maxresdefault.jpg)](https://www.youtube.com/watch?v=jnlp1WfTg1I)
+
 **Wrapper** is a React Native-based application designed to help users manage their finances effectively. It enables users to track expenses, set budgets, and visualize spending habits, ensuring better financial health. Built for Droidrush Avishkar MNNIT 2024, Wrapper is your all-in-one financial assistant!
 
 ## Technology Stack Used ✨
@@ -8,6 +10,7 @@
 ![Expo Go](https://img.shields.io/badge/Expo%20Go-000020?style=for-the-badge&logo=expo&logoColor=white)
 
 ---
+
 ## Features Implemented 💡
 
 1. **📂 Expense Management**
@@ -42,6 +45,7 @@
       
 11. **💳 Deep Link UPI Payments**
     - Redirect to your preferred UPI app for payment upon adding an expense.
+
 ---
 
 ### Wow Factors 🚀
@@ -73,5 +77,3 @@
 - [Harshit Kumar Jayaswal](https://github.com/kharshit801)  
 - [Aachintya Wairiya](https://github.com/aachintya)  
 - [Abhishek Rastogi](https://github.com/Abhishekmnnit6022)  
-
----

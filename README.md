@@ -1,79 +1,83 @@
-# Wrapper 💰
+<a href="https://hack36.in">
+  <img src="https://postimage.me/images/2025/04/19/built-at-hack36.png" height="28px" alt="Built at Hack36">
+</a>
 
-[![Watch the video](https://img.youtube.com/vi/jnlp1WfTg1I/maxresdefault.jpg)](https://www.youtube.com/watch?v=jnlp1WfTg1I)
+# Introduction
 
-**Wrapper** is a React Native-based application designed to help users manage their finances effectively. It enables users to track expenses, set budgets, and visualize spending habits, ensuring better financial health. Built for Droidrush Avishkar MNNIT 2024, Wrapper is your all-in-one financial assistant!
 
-## Technology Stack Used ✨
-
-![React Native](https://img.shields.io/badge/React%20Native-61DAFB?style=for-the-badge&logo=react&logoColor=white)  
-![Expo Go](https://img.shields.io/badge/Expo%20Go-000020?style=for-the-badge&logo=expo&logoColor=white)
+**FarmAI** is a cross-platform mobile application built with **React Native** and **Expo**, aimed at empowering farmers with AI and API-powered agricultural tools. The app offers real-time support for detecting diseases in crops and cattle, provides smart crop recommendations, weather insights, and access to market and soil health information — all in one unified platform.
 
 ---
 
-## Features Implemented 💡
+## 🚀 Features
 
-1. **📂 Expense Management**
-   - Create, edit, and delete expenses with categorized tags.
-     
-2. **📊 Data Visualization**
-   - View spending patterns using Pie Charts and Line Graphs.
-     
-3. **📅 Budgeting with Alerts**
-   - Set monthly budgets and receive notifications when limits are exceeded.
-     
-4. **🗂️ Expense Categorization**
-   - Classify expenses into categories like Food, Transport, and Entertainment.
-     
-5. **📤 Export Reports**
-   - Export financial reports in PDF, JSON, or CSV formats.
-     
-6. **💱 Multi-Currency Support**
-   - Track expenses in different currencies with live exchange rates.
-     
-7. **🌐 Multi-Language Support**
-   - Available in multiple languages for a global audience.
-     
-8. **🎯 Saving Goals**
-   - Set and track progress toward saving goals.
-     
-9. **🔐 Local Authentication**
-   - Ensure security with local authentication methods.
-     
-10. **🧮 In-Built Expense Calculator**
-    - Perform quick calculations directly within the app.
-      
-11. **💳 Deep Link UPI Payments**
-    - Redirect to your preferred UPI app for payment upon adding an expense.
+### 🐄 Cattle Disease Prediction
+- Upload or capture images of cattle.
+- Detects possible diseases using an on-device ML model.
+- Shows symptoms, causes, and treatment options.
 
----
+### 🌿 Crop Disease Detection
+- Upload or capture crop leaf images.
+- Predicts diseases using a trained deep learning model.
+- Offers treatment suggestions and information.
 
-### Wow Factors 🚀
+### 🗺️ Farm Mapping
+- Interactive map to draw and mark farm boundaries.
+- Location-based insights for improved planning.
 
-- **QR Data Sync**  
-  🔄 Seamlessly sync data across devices using QR codes.
+### ☁️ Weather Insights
+- Real-time and 7-day forecast using OpenWeatherMap API.
+- Informs irrigation, sowing, and harvesting decisions.
 
-- **AI Financial Advisor Chatbot**  
-  🤖 Get personalized budget recommendations powered by Google GEMINI API.
+### 🌱 Smart Crop Recommendation
+- Suggests optimal crops based on region, season, and weather.
+- ML-powered, trained on contextual datasets.
 
-- **OCR Expense Input**  
-  📸 Add expenses from receipts using OCR (camera or gallery).
+### 🧪 Fertilizer Marketplace
+- Explore fertilizers suitable for soil and crop types.
+- Integrated UI for browsing and purchasing.
+
+### 🏬 Live Mandi Prices
+- Real-time market data from the Govt. of India Mandi API.
+- Displays prices and availability from nearby mandis.
+
+### 📄 Soil Card OCR
+- Upload Soil Health Cards issued by the government.
+- Extracts data like pH, NPK values using OCR.
+- Recommends crops based on extracted soil profile.
 
 ---
 
-## Libraries and APIs Used 💻
+## 📽️ Demo Video
+*Coming Soon*
 
-- **React Native Libraries**: For seamless app functionality.  
-- **Lottie Animations**: Enhance user experience with engaging animations.  
-- **Google GEMINI API**: Power the AI Financial Advisor chatbot.  
-- **OCR SPACE API**: Implement OCR for receipt scanning and expense addition.
+## 🖥️ Presentation
+[📊 Click to View the PPT](https://www.canva.com/design/DAGlHMvASVo/UuyKCeXS75A5e7OVWrdSKg/edit)
 
 ---
 
-# Team Auxin
+## 🛠️ Tech Stack
 
-### Team Members ✨
+| Layer         | Technologies Used |
+|---------------|-------------------|
+| **Frontend**  | React Native, Expo |
+| **Backend**   | Flask              |
+| **ML Models** | TensorFlow Lite (TFLite), Trained in Google Colab |
+| **APIs**      | OpenWeatherMap, Mandi API, Geolocation APIs, OCR (Julep SDK) |
 
-- [Harshit Kumar Jayaswal](https://github.com/kharshit801)  
-- [Aachintya Wairiya](https://github.com/aachintya)  
-- [Abhishek Rastogi](https://github.com/Abhishekmnnit6022)  
+---
+
+## 👨‍💻 Team Members
+
+- [Harshit Kumar Jayaswal](https://github.com/kharshit801)
+- [Aachintya Wairiya](https://github.com/aachintya)
+- [Abhishek Rastogi](https://github.com/Abhishekmnnit6022)
+- [Harsh Pandey](https://github.com/HarshCodeWizard)
+
+---
+
+## 🏆 Built At
+
+<a href="https://hack36.in">
+  <img src="https://postimage.me/images/2025/04/19/built-at-hack36.png" height="24px" alt="Built at Hack36">
+</a>

@@ -15,6 +15,7 @@
 - Upload or capture images of cattle.
 - Detects possible diseases using an on-device ML model.
 - Shows symptoms, causes, and treatment options.
+- Based on the Health, it can be used to buy insurance
 
 ### 🌿 Crop Disease Detection
 - Upload or capture crop leaf images.
@@ -69,12 +70,23 @@
 
 ## 👨‍💻 Team Members
 
-- [Harshit Kumar Jayaswal](https://github.com/kharshit801)
-- [Aachintya Wairiya](https://github.com/aachintya)
-- [Abhishek Rastogi](https://github.com/Abhishekmnnit6022)
-- [Harsh Pandey](https://github.com/HarshCodeWizard)
+<table>
+  <tr>
+    <td>
+      <ul>
+        <li><a href="https://github.com/kharshit801">Harshit Kumar Jayaswal</a></li>
+        <li><a href="https://github.com/aachintya">Aachintya Wairiya</a></li>
+        <li><a href="https://github.com/Abhishekmnnit6022">Abhishek Rastogi</a></li>
+        <li><a href="https://github.com/HarshCodeWizard">Harsh Pandey</a></li>
+      </ul>
+    </td>
+    <td style="text-align:center; vertical-align:middle;">
+      <img src="https://github.com/user-attachments/assets/41d76127-9bba-4f78-ba72-30cdb7d9abdf" alt="Team Auxin" width="100"/>
+      <div style="font-size: small;">TEAM AUXIN</div>
+    </td>
+  </tr>
+</table>
 
----
 
 ## 🏆 Built At
 

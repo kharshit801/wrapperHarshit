@@ -9,7 +9,7 @@ const STORAGE_KEY = "APP_STATE";
 const BUDGETS_STORAGE_KEY = "APP_BUDGETS";
 const CATEGORY_BUDGETS_KEY = "CATEGORY_BUDGETS";
 const EXCHANGE_RATES_KEY = "EXCHANGE_RATES";
-const API_KEY = "01a7198d837ea3c1fea54677";
+const API_KEY = "2dca0e1dfce884587f5f5dd0";
 
 const initialState = {
   transactions: [],

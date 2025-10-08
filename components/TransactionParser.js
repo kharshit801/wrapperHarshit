@@ -16,7 +16,7 @@ class TransactionParser {
   
     async performOCR(base64Image) {
       try {
-        const apiKey = 'K82750295688957';
+        const apiKey = 'K81056315088957';
         const formData = new FormData();
         formData.append('apikey', apiKey);
         formData.append('base64Image', `data:image/jpeg;base64,${base64Image}`);
